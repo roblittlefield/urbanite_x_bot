@@ -1,47 +1,11 @@
 from google.cloud import secretmanager
-import base64
-import hashlib
 import os
 import re
 import redis
-from requests.auth import AuthBase, HTTPBasicAuth
-from requests_oauthlib import OAuth2Session, TokenUpdated
-from flask import Flask, request, redirect, session, url_for, render_template
+from requests_oauthlib import OAuth2Session
 import requests
 import json
 from datetime import datetime, timedelta
-import os
-
-# Setting up Redis
-# r = redis.from_url(REDIS_URL)
-r = redis.from_url(os.environ["REDIS_URL"])
-
-# Set a variable for app to initialize it
-app = Flask(__name__)
-app.secret_key = os.urandom(50)
-
-# Twitter OAuth 2.0
-# client_id = CLIENT_ID
-# client_secret = CLIENT_SECRET
-# redirect_uri = REDIRECT_URI
-client_id = os.environ.get("CLIENT_ID")
-client_secret = os.environ.get("CLIENT_SECRET")
-redirect_uri = os.environ.get("REDIRECT_URI")
-auth_url = "https://twitter.com/i/oauth2/authorize"
-token_url = "https://api.twitter.com/2/oauth2/token"
-# scopes = ["tweet.write", "offline.access"]
-scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
-
-code_verifier = base64.urlsafe_b64encode(os.urandom(30)).decode("utf-8")
-code_verifier = re.sub("[^a-zA-Z0-9]+", "", code_verifier)
-
-code_challenge = hashlib.sha256(code_verifier.encode("utf-8")).digest()
-code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
-code_challenge = code_challenge.replace("=", "")
-
-
-def make_token():
-    return OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
 
 
 def get_calls():
@@ -56,6 +20,17 @@ def get_calls():
     return data_sf
 
 
+def text_proper_case(text_raw):
+    text = text_raw \
+        .replace(r'\\\\', '\\') \
+        .replace(r'0(\d)', r'\1') \
+        .replace('\\', '/') \
+        .split('/')[:2]
+
+    text = '/'.join(text).lower().title().strip()[:45]
+    return text
+
+
 def get_tweets():
     calls = get_calls()
     call_tweets = []
@@ -65,24 +40,36 @@ def get_tweets():
             received_date = datetime.strptime(received_date_string, '%Y-%m-%dT%H:%M:%S.%f')
             received_date_pst = received_date - timedelta(hours=7)
 
-            onscene_date_string = call["onscene_datetime"]
-            onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
-            onscene_date_pst = onscene_date - timedelta(hours=7)
-
-            response_time_diff = onscene_date_pst - received_date_pst
-            response_time = round(response_time_diff.total_seconds() / 60)
-
             time_difference = datetime.now() - received_date
             total_seconds = time_difference.total_seconds()
+            minutes_ago = round(total_seconds / 60, 1)
             hours_ago = round(total_seconds / 3600, 1)
             call_type_desc = call['call_type_final_desc'].title()
-            print(f"Time ago: {hours_ago} hours. Response time: {response_time} mins.")
-            if hours_ago < 48:
-                tweet = f"{call_type_desc} at {call['intersection_name'].title()} in {call['analysis_neighborhood']} at {received_date_pst.strftime('%I:%M %p')}, Priority {call['priority_final']}, SFPD Response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
-                call_tweets.append(tweet)
+
+            if call["onscene_datetime"]:
+                onscene_date_string = call["onscene_datetime"]
+                onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
+                onscene_date_pst = onscene_date - timedelta(hours=7)
+
+                response_time_diff = onscene_date_pst - received_date_pst
+                response_time = round(response_time_diff.total_seconds() / 60)
+
+                print(f"Time ago: {hours_ago} hours. Response time: {response_time} mins.")
+                if minutes_ago < 100000:
+                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} at {received_date_pst.strftime('%I:%M %p')}, Priority {call['priority_final']}, SFPD Response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                    call_tweets.append(new_tweet)
+            else:
+                if minutes_ago < 100000:
+                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} at {received_date_pst.strftime('%I:%M %p')}, Priority {call['priority_final']}, SFPD currently responding, urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                    call_tweets.append(new_tweet)
+
     print(f"\nNumber of shootings in last 8 hrs: {len(call_tweets)}\n")
 
     return call_tweets
+
+
+def make_token():
+    return OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
 
 
 def post_tweet(payload, token):
@@ -98,39 +85,37 @@ def post_tweet(payload, token):
     )
 
 
-@app.route("/")
-def demo():
-    global twitter
+client_id = os.environ.get("CLIENT_ID")
+client_secret = os.environ.get("CLIENT_SECRET")
+redirect_uri = os.environ.get("REDIRECT_URI")
+redis_url = os.environ.get("REDIS_URL")
+
+r = redis.from_url(redis_url)
+token_url = "https://api.twitter.com/2/oauth2/token"
+auth_url = "https://twitter.com/i/oauth2/authorize"
+scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
+
+
+def run_bot():
     twitter = make_token()
-    authorization_url, state = twitter.authorization_url(
-        auth_url, code_challenge=code_challenge, code_challenge_method="S256"
-    )
-    session["oauth_state"] = state
-    return redirect(authorization_url)
+    t = r.get("token")
+    bb_t = t.decode("utf8").replace("'", '"')
+    data = json.loads(bb_t)
 
-
-@app.route("/oauth/callback", methods=["GET"])
-def callback():
-    code = request.args.get("code")
-    token = twitter.fetch_token(
-        token_url=token_url,
+    refreshed_token = twitter.refresh_token(
+        client_id=client_id,
         client_secret=client_secret,
-        code_verifier=code_verifier,
-        code=code,
+        token_url=token_url,
+        refresh_token=data["refresh_token"],
     )
-    st_token = '"{}"'.format(token)
-    j_token = json.loads(st_token)
-    r.set("token", j_token)
+
+    st_refreshed_token = '"{}"'.format(refreshed_token)
+    j_refreshed_token = json.loads(st_refreshed_token)
+    r.set("token", j_refreshed_token)
+
     tweets = get_tweets()
-    print(tweets)
-    responses = []
     for tweet in tweets:
-        print(f"Tweeting: {tweet}")
         payload = {"text": tweet}
-        response = post_tweet(payload, token).json()
-        responses.append(response)
-    return responses
+        post_tweet(payload, refreshed_token)
 
-
-if __name__ == "__main__":
-    app.run()
+run_bot()
