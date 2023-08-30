@@ -1,4 +1,4 @@
-# from google.cloud import secretmanager
+from google.cloud import secretmanager
 import base64
 import hashlib
 import os
