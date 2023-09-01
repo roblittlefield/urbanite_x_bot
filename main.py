@@ -1,5 +1,5 @@
-# from google.cloud import secretmanager
-# import functions_framework
+from google.cloud import secretmanager
+import functions_framework
 from google.cloud import storage
 import re
 import redis
@@ -81,13 +81,16 @@ def get_tweets(refreshed_token):
             total_seconds = time_difference.total_seconds()
             minutes_ago = round(total_seconds / 60, 1)
             hours_ago = round(total_seconds / 3600, 1)
+
             if hours_ago > 24:
                 continue
+
             try:
                 call_type_desc = call['call_type_final_desc'].title()
             except KeyError:
                 call_type_desc = call['call_type_original_desc'].title()  # correct
             print(f"{call_type_desc}: {hours_ago} hours ago. CAD {cad_number}")
+
             try:
                 onscene_date_string = call["onscene_datetime"]
                 onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
@@ -165,15 +168,11 @@ def post_tweet_reply(tweet_id, tweet, token):
     )
 
 
-# client = secretmanager.SecretManagerServiceClient()
-# client_id = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/CLIENT_ID/versions/latest"}).payload.data.decode("UTF-8")
-# client_secret = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/CLIENT_SECRET/versions/latest"}).payload.data.decode("UTF-8")
-# redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/REDIRECT_URI/versions/latest"}).payload.data.decode("UTF-8")
-# redis_url = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/REDIS_URL/versions/latest"}).payload.data.decode("UTF-8")
-client_id = "NzFLTEozQkpBMHUwQnlMSU5YVWk6MTpjaQ"
-client_secret = "QbU4sMUkCLT92OnNqiG81cenEuxpEEHKYZ4CPf663qUjiDa0Dy"
-redirect_uri = 'http://127.0.0.1:5000/oauth/callback'
-redis_url = ("rediss://red-cjl8i95k5scs73dvjh70:7K8SENjbGrEUTG6XZ60uuyRjqSfLx6MI@oregon-redis.render.com:6379")
+client = secretmanager.SecretManagerServiceClient()
+client_id = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/CLIENT_ID/versions/latest"}).payload.data.decode("UTF-8")
+client_secret = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/CLIENT_SECRET/versions/latest"}).payload.data.decode("UTF-8")
+redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/REDIRECT_URI/versions/latest"}).payload.data.decode("UTF-8")
+redis_url = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/REDIS_URL/versions/latest"}).payload.data.decode("UTF-8")
 
 r = redis.from_url(redis_url)
 token_url = "https://api.twitter.com/2/oauth2/token"
@@ -202,7 +201,6 @@ def run_bot(cloud_event):
     tweets = get_tweets(refreshed_token)
     for tweet in tweets:
         payload = {"text": tweet}
-        print(payload)
         response = post_tweet(payload, refreshed_token)
 
         if response.status_code == 201:
@@ -219,7 +217,6 @@ def run_bot(cloud_event):
                 mark_cad_posted(cad_number, tweet_id)
                 print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
         else:
-            print(response.status_code)
-            print("Tweet posting failed.")
+            print(f"Tweet posting failed. Error {response.status_code}")
 
-run_bot("Hello")
+# Thanks for checking out the Urbanite SF Twitter Bot
