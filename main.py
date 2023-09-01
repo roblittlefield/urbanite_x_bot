@@ -1,6 +1,6 @@
 from google.cloud import secretmanager
-import functions_framework
 from google.cloud import storage
+import functions_framework
 import re
 import redis
 from requests_oauthlib import OAuth2Session
@@ -18,7 +18,7 @@ posted_tweets_blob = bucket.blob(posted_tweets_file)
 posted_tweets_existing_data = posted_tweets_blob.download_as_text() if posted_tweets_blob.exists() else ""
 
 tweets_wo_rt_file = "tweets_wo_rt.csv"
-tweets_wo_rt_blob = bucket.blog(tweets_wo_rt_file)
+tweets_wo_rt_blob = bucket.blob(tweets_wo_rt_file)
 tweet_wo_rt_existing_data = tweets_wo_rt_blob.download_as_text() if tweets_wo_rt_blob.exists() else ""
 
 
@@ -71,6 +71,7 @@ def get_tweets(refreshed_token):
             # Break for repeat tweets
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
+                print(f'Already posted tweet with this CAD #{cad_number}')
                 continue
 
             received_date_string = call["received_datetime"]
@@ -97,11 +98,11 @@ def get_tweets(refreshed_token):
                 onscene_date_pst = onscene_date - timedelta(hours=7)
                 response_time_diff = onscene_date_pst - received_date_pst
                 response_time = round(response_time_diff.total_seconds() / 60)
+                print(f"Response time: {response_time} mins")
 
                 tweet_wo_rt_id = find_tweet_id_by_cad_number(cad_number)
-                print(f"Response time: {response_time} mins")
                 if tweet_wo_rt_id:
-                    print(tweet_wo_rt_id)
+                    print(f"Call tweeted already but without RT, adding RT in reply...{tweet_wo_rt_id}")
                     new_reply = f"Call answered, replying with response time: {response_time}m"
                     response = post_tweet_reply(tweet_wo_rt_id, new_reply, refreshed_token)
                     tweet_wo_rt_id = json.loads(response.text)["data"]["id"]
@@ -180,7 +181,7 @@ auth_url = "https://twitter.com/i/oauth2/authorize"
 scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
 
 
-# @functions_framework.cloud_event
+@functions_framework.cloud_event
 def run_bot(cloud_event):
     twitter = make_token()
     t = r.get("token")
@@ -219,4 +220,3 @@ def run_bot(cloud_event):
         else:
             print(f"Tweet posting failed. Error {response.status_code}")
 
-# Thanks for checking out the Urbanite SF Twitter Bot
