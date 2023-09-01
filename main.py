@@ -15,21 +15,18 @@ bucket = storage_client.bucket(bucket_name)
 
 posted_tweets_file = "posted_tweets.csv"
 posted_tweets_blob = bucket.blob(posted_tweets_file)
-posted_tweets_existing_data = posted_tweets_blob.download_as_text() if posted_tweets_blob.exists() else ""
+posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 tweets_wo_rt_file = "tweets_wo_rt.csv"
 tweets_wo_rt_blob = bucket.blob(tweets_wo_rt_file)
-tweet_wo_rt_existing_data = tweets_wo_rt_blob.download_as_text() if tweets_wo_rt_blob.exists() else ""
+tweet_wo_rt_existing_data = tweets_wo_rt_blob.download_as_text()
 
 
 def text_proper_case(text_raw):
-    text = text_raw \
-        .replace(r'\\\\', '\\') \
-        .replace(r'0(\d)', r'\1') \
-        .replace('\\', '/') \
-        .split('/')[:2]
-
-    text = '/'.join(text).lower().title().strip()[:45]
+    parts = text_raw.replace('\\\\', '\\').replace('\\', '/').replace(r'0(\d)', r'\1').split('/')
+    for i in range(len(parts)):
+        parts[i] = ' '.join(word.capitalize() for word in parts[i].split())
+    text = ' / '.join(parts).strip()[:45]
     return text
 
 
@@ -71,7 +68,7 @@ def get_tweets(refreshed_token):
             # Break for repeat tweets
             cad_number = call["cad_number"]
             on_view = call["onview_flag"]
-            if on_view:
+            if on_view == "Y":
                 on_view_text = "Officer Observed, "
             else:
                 on_view_text = ""
@@ -85,7 +82,7 @@ def get_tweets(refreshed_token):
 
             time_difference = datetime.now() - received_date
             total_seconds = time_difference.total_seconds()
-            minutes_ago = round(total_seconds / 60, 1)
+            # minutes_ago = round(total_seconds / 60, 1)
             hours_ago = round(total_seconds / 3600, 1)
 
             if hours_ago > 24:
@@ -126,11 +123,11 @@ def get_tweets(refreshed_token):
                     else:
                         print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
                 else:
-                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} at {received_date_pst.strftime('%l:%M %p')}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_pst.strftime('at %l:%M %p')}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                     call_tweets.append(new_tweet)
             except KeyError:
                 print("No response time yet, adding tweet as wo rt")
-                new_tweet_wo = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} at {received_date_pst.strftime('%l:%M %p')}, Priority {call['priority_final']}, {on_view_text}SFPD currently responding... urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                new_tweet_wo = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_pst.strftime('at %l:%M %p')}, Priority {call['priority_final']}, {on_view_text}SFPD currently responding... urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                 call_tweets.append(new_tweet_wo)
 
     print(f"Number of new stabbing/shootings/strong arm robberies: {len(call_tweets)}\n")
@@ -213,7 +210,7 @@ def run_bot(cloud_event):
             tweet_id = json.loads(response.text)["data"]["id"]
             cad_number = payload["text"][-9:]
 
-            contains_response_time = "SFPD Response time:" in tweet
+            contains_response_time = "SFPD response time:" in tweet
             if not contains_response_time:
                 tweets_wo_rt_new_data = f"{cad_number}-{tweet_id},\n"
                 tweets_wo_rt_updated_data = tweet_wo_rt_existing_data + tweets_wo_rt_new_data
