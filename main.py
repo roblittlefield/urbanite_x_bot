@@ -78,6 +78,7 @@ def get_tweets(refreshed_token):
 
             received_date_string = call["received_datetime"]
             received_date = datetime.strptime(received_date_string, '%Y-%m-%dT%H:%M:%S.%f')
+
             if received_date.hour < 10 or (12 < received_date.hour < 22):
                 hour = received_date.strftime('%l')[1]
             else:
@@ -85,9 +86,10 @@ def get_tweets(refreshed_token):
             received_date_min = received_date.strftime(f':%M %p')
             received_date_formatted = "at " + hour + received_date_min
 
-            time_difference = datetime.now() - received_date
+            time_now = datetime.now() - timedelta(hours=7)
+            time_difference = time_now - received_date
             total_seconds = time_difference.total_seconds()
-            # minutes_ago = round(total_seconds / 60, 1)
+            minutes_ago = round(total_seconds / 60, 1)
             hours_ago = round(total_seconds / 3600, 1)
 
             if hours_ago > 24:
@@ -97,7 +99,7 @@ def get_tweets(refreshed_token):
                 call_type_desc = call['call_type_final_desc'].title()
             except KeyError:
                 call_type_desc = call['call_type_original_desc'].title()  # correct
-            print(f"{call_type_desc}: {hours_ago} hours ago. CAD {cad_number}")
+            print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
                 onscene_date_string = call["onscene_datetime"]
