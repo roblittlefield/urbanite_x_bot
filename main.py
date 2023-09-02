@@ -82,8 +82,8 @@ def get_tweets(refreshed_token):
                 hour = received_date.strftime('%l')[1]
             else:
                 hour = received_date.strftime('%I')
-            received_date_pst_min = received_date.strftime(f':%M %p')
-            received_date_pst_formatted = "at " + hour + received_date_pst_min
+            received_date_min = received_date.strftime(f':%M %p')
+            received_date_formatted = "at " + hour + received_date_min
 
             time_difference = datetime.now() - received_date
             total_seconds = time_difference.total_seconds()
@@ -127,7 +127,7 @@ def get_tweets(refreshed_token):
                     else:
                         print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
                 else:
-                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_pst_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                     call_tweets.append(new_tweet)
             except KeyError:
                 global tweet_wo_rt_existing_data
@@ -135,7 +135,7 @@ def get_tweets(refreshed_token):
                     print(f'Already posted tweet w/o RT with this CAD #{cad_number}')
                     continue
                 print("No response time yet, adding tweet as wo rt")
-                new_tweet_wo = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_pst_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD currently responding... urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                new_tweet_wo = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD currently responding... urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                 call_tweets.append(new_tweet_wo)
 
     print(f"Number of new stabbing/shootings/strong arm robberies: {len(call_tweets)}\n")
