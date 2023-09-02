@@ -78,12 +78,11 @@ def get_tweets(refreshed_token):
 
             received_date_string = call["received_datetime"]
             received_date = datetime.strptime(received_date_string, '%Y-%m-%dT%H:%M:%S.%f')
-            received_date_pst = received_date - timedelta(hours=7)
-            if received_date_pst.hour < 10 or (12 < received_date_pst.hour < 22):
-                hour = received_date_pst.strftime('%l')[1]
+            if received_date.hour < 10 or (12 < received_date.hour < 22):
+                hour = received_date.strftime('%l')[1]
             else:
-                hour = received_date_pst.strftime('%I')
-            received_date_pst_min = received_date_pst.strftime(f':%M %p')
+                hour = received_date.strftime('%I')
+            received_date_pst_min = received_date.strftime(f':%M %p')
             received_date_pst_formatted = "at " + hour + received_date_pst_min
 
             time_difference = datetime.now() - received_date
@@ -103,8 +102,7 @@ def get_tweets(refreshed_token):
             try:
                 onscene_date_string = call["onscene_datetime"]
                 onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
-                onscene_date_pst = onscene_date - timedelta(hours=7)
-                response_time_diff = onscene_date_pst - received_date_pst
+                response_time_diff = onscene_date - received_date
                 response_time = round(response_time_diff.total_seconds() / 60)
                 print(f"Response time: {response_time} mins")
 
@@ -180,10 +178,10 @@ def post_tweet_reply(tweet_id, tweet, token):
 
 
 client = secretmanager.SecretManagerServiceClient()
-client_id = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/CLIENT_ID/versions/latest"}).payload.data.decode("UTF-8")
-client_secret = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/CLIENT_SECRET/versions/latest"}).payload.data.decode("UTF-8")
-redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/REDIRECT_URI/versions/latest"}).payload.data.decode("UTF-8")
-redis_url = client.access_secret_version(request={"name": "projects/urbanite-sf-twitter-bot/secrets/REDIS_URL/versions/latest"}).payload.data.decode("UTF-8")
+client_id = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/CLIENT_ID/versions/latest"}).payload.data.decode("UTF-8")
+client_secret = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/CLIENT_SECRET/versions/latest"}).payload.data.decode("UTF-8")
+redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIRECT_URI/versions/latest"}).payload.data.decode("UTF-8")
+redis_url = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIS_URL/versions/latest"}).payload.data.decode("UTF-8")
 
 r = redis.from_url(redis_url)
 token_url = "https://api.twitter.com/2/oauth2/token"
