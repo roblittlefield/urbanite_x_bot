@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 # Google Cloud Storage Urbanite Twitter Bot Bucket
 storage_client = storage.Client()
-bucket_name = "urbanite-twitter-bot-data"
+bucket_name = "urbanite-x-bot-data"
 bucket = storage_client.bucket(bucket_name)
 
 posted_tweets_file = "posted_tweets.csv"
@@ -79,7 +79,7 @@ def get_tweets(refreshed_token):
             received_date_string = call["received_datetime"]
             received_date = datetime.strptime(received_date_string, '%Y-%m-%dT%H:%M:%S.%f')
             received_date_pst = received_date - timedelta(hours=7)
-            if received_date_pst.hour < 10:
+            if received_date_pst.hour < 10 or (12 < received_date_pst.hour < 22):
                 hour = received_date_pst.strftime('%l')[1]
             else:
                 hour = received_date_pst.strftime('%I')
@@ -141,10 +141,12 @@ def get_tweets(refreshed_token):
 
 
 def mark_cad_posted(cad_number, tweet_id):
+    global posted_tweets_existing_data
     posted_tweets_new_data = f"{cad_number}-{tweet_id},\n"
-    posted_tweets_updated_data = posted_tweets_existing_data + posted_tweets_new_data
-    posted_tweets_blob.upload_from_string(posted_tweets_updated_data)
+    posted_tweets_existing_data += posted_tweets_new_data
+    posted_tweets_blob.upload_from_string(posted_tweets_existing_data)
     print(f"Added call #{cad_number} with Tweet ID: {tweet_id}")
+
 
 def make_token():
     return OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
@@ -218,13 +220,13 @@ def run_bot(cloud_event):
 
             contains_response_time = "SFPD response time:" in tweet
             if not contains_response_time:
+                global tweet_wo_rt_existing_data
                 tweets_wo_rt_new_data = f"{cad_number}-{tweet_id},\n"
-                tweets_wo_rt_updated_data = tweet_wo_rt_existing_data + tweets_wo_rt_new_data
-                tweets_wo_rt_blob.upload_from_string(tweets_wo_rt_updated_data)
+                tweet_wo_rt_existing_data += tweets_wo_rt_new_data
+                tweets_wo_rt_blob.upload_from_string(tweet_wo_rt_existing_data)
                 print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
             else:
                 mark_cad_posted(cad_number, tweet_id)
                 print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
         else:
             print(f"Tweet posting failed. Error {response.status_code}")
-
