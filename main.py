@@ -130,6 +130,10 @@ def get_tweets(refreshed_token):
                     new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_pst_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                     call_tweets.append(new_tweet)
             except KeyError:
+                global tweet_wo_rt_existing_data
+                if cad_number in tweet_wo_rt_existing_data:
+                    print(f'Already posted tweet w/o RT with this CAD #{cad_number}')
+                    continue
                 print("No response time yet, adding tweet as wo rt")
                 new_tweet_wo = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_pst_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD currently responding... urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                 call_tweets.append(new_tweet_wo)
