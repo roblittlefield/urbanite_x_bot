@@ -31,9 +31,10 @@ def text_proper_case(text_raw):
 
 
 def find_tweet_id_by_cad_number(cad_number_try):
+    global tweet_wo_rt_existing_data
     try:
-        if cad_number_try in posted_tweets_existing_data:
-            lines = posted_tweets_existing_data.split('\n')
+        if cad_number_try in tweet_wo_rt_existing_data:
+            lines = tweet_wo_rt_existing_data.split('\n')
             for line in lines:
                 parts = line.strip().split('-')
                 if len(parts) == 2 and parts[0].strip() == cad_number_try:
@@ -58,6 +59,32 @@ def get_calls():
     data_sf = response.json()
     print(f"Number of retrieved SFPD calls: {len(data_sf)}\n")
     return data_sf
+
+
+disposition_ref = {
+    "ABA": "Officer abated",
+    "ADM": "Officer admonished",
+    "ADV": "Officer advised",
+    "ARR": "Arrest made",
+    "CAN": "Call cancelled",
+    "CSA": "CPSA assignment",
+    "CIT": "Citation issued",
+    "CRM": "Burglary alarm",
+    "GOA": "Gone on arrival",
+    "HAN": "Officer handled",
+    "NCR": "No issue found",
+    "ND": "Related call",
+    "NOM": "No merit",
+    "PAS": "Home alarm",
+    "REP": "Police report made",
+    "SFD": "EMS engaged",
+    "UTL": "Unable to locate",
+    "VAS": "Car alarm",
+}
+
+
+def get_police_disposition_text(code):
+    return disposition_ref.get(code)
 
 
 def get_tweets(refreshed_token):
@@ -102,6 +129,13 @@ def get_tweets(refreshed_token):
             print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
+                disposition_code = call['disposition']
+                disposition = f", {get_police_disposition_text(disposition_code)}"
+
+            except KeyError:
+                disposition = ""
+
+            try:
                 onscene_date_string = call["onscene_datetime"]
                 onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
                 response_time_diff = onscene_date - received_date
@@ -111,7 +145,7 @@ def get_tweets(refreshed_token):
                 tweet_wo_rt_id = find_tweet_id_by_cad_number(cad_number)
                 if tweet_wo_rt_id:
                     print(f"Call tweeted already but without RT, adding RT in reply...{tweet_wo_rt_id}")
-                    new_reply = f"Call answered, replying with response time: {response_time}m"
+                    new_reply = f"SFPD on-scene, response time: {response_time}m{disposition}"
                     response = post_tweet_reply(tweet_wo_rt_id, new_reply, refreshed_token)
                     tweet_wo_rt_id = json.loads(response.text)["data"]["id"]
                     if response.status_code == 201:
@@ -129,7 +163,7 @@ def get_tweets(refreshed_token):
                     else:
                         print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
                 else:
-                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                     call_tweets.append(new_tweet)
             except KeyError:
                 global tweet_wo_rt_existing_data
@@ -146,7 +180,7 @@ def get_tweets(refreshed_token):
 
 def mark_cad_posted(cad_number, tweet_id):
     global posted_tweets_existing_data
-    posted_tweets_new_data = f"{cad_number}-{tweet_id},\n"
+    posted_tweets_new_data = f"{cad_number}-{tweet_id}\n"
     posted_tweets_existing_data += posted_tweets_new_data
     posted_tweets_blob.upload_from_string(posted_tweets_existing_data)
     print(f"Added call #{cad_number} with Tweet ID: {tweet_id}")
@@ -225,7 +259,7 @@ def run_bot(cloud_event):
             contains_response_time = "SFPD response time:" in tweet
             if not contains_response_time:
                 global tweet_wo_rt_existing_data
-                tweets_wo_rt_new_data = f"{cad_number}-{tweet_id},\n"
+                tweets_wo_rt_new_data = f"{cad_number}-{tweet_id}\n"
                 tweet_wo_rt_existing_data += tweets_wo_rt_new_data
                 tweets_wo_rt_blob.upload_from_string(tweet_wo_rt_existing_data)
                 print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
