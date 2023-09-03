@@ -92,7 +92,6 @@ def get_tweets(refreshed_token):
     call_tweets = []
     for call in calls:
         if call["call_type_final"] == str(217) or call["call_type_final"] == str(219) or call["call_type_final"] == str(212):  # 459 freq for testing, 217 = shooting
-            # Break for repeat tweets
             cad_number = call["cad_number"]
             on_view = call["onview_flag"]
             if on_view == "Y":
