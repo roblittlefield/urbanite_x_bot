@@ -52,7 +52,7 @@ def find_tweet_id_by_cad_number(cad_number_try):
 def get_calls():
     sf_data_url = 'https://data.sfgov.org/resource/gnap-fj3t.json'
     sf_data_parameters = {
-        "$limit": 8000,
+        "$limit": 6000,
     }
     response = requests.get(url=sf_data_url, params=sf_data_parameters)
     response.raise_for_status()
@@ -61,37 +61,36 @@ def get_calls():
     return data_sf
 
 
-disposition_ref = {
-    "ABA": "Officer abated",
-    "ADM": "Officer admonished",
-    "ADV": "Officer advised",
-    "ARR": "Arrest made",
-    "CAN": "Call cancelled",
-    "CSA": "CPSA assignment",
-    "CIT": "Citation issued",
-    "CRM": "Burglary alarm",
-    "GOA": "Gone on arrival",
-    "HAN": "Officer handled",
-    "NCR": "No issue found",
-    "ND": "Related call",
-    "NOM": "No merit",
-    "PAS": "Home alarm",
-    "REP": "Police report made",
-    "SFD": "EMS engaged",
-    "UTL": "Unable to locate",
-    "VAS": "Car alarm",
-}
-
-
 def get_police_disposition_text(code):
+    disposition_ref = {
+        "ABA": "Officer abated",
+        "ADM": "Officer admonished",
+        "ADV": "Officer advised",
+        "ARR": "Arrest made",
+        "CAN": "Call cancelled",
+        "CSA": "CPSA assignment",
+        "CIT": "Citation issued",
+        "CRM": "Burglary alarm",
+        "GOA": "Gone on arrival",
+        "HAN": "Officer handled",
+        "NCR": "No issue found",
+        "ND": "Related call",
+        "NOM": "No merit",
+        "PAS": "Home alarm",
+        "REP": "Police report made",
+        "SFD": "EMS engaged",
+        "UTL": "Unable to locate",
+        "VAS": "Car alarm",
+    }
     return disposition_ref.get(code)
 
 
-def get_tweets(refreshed_token):
+def get_tweets():
     calls = get_calls()
     call_tweets = []
     for call in calls:
         if call["call_type_final"] == str(217) or call["call_type_final"] == str(219) or call["call_type_final"] == str(212):  # 459 freq for testing, 217 = shooting
+            # Break for repeat tweets
             cad_number = call["cad_number"]
             on_view = call["onview_flag"]
             if on_view == "Y":
@@ -118,7 +117,7 @@ def get_tweets(refreshed_token):
             minutes_ago = round(total_seconds / 60, 1)
             hours_ago = round(total_seconds / 3600, 1)
 
-            if hours_ago > 24:
+            if hours_ago > 12:
                 continue
 
             try:
@@ -141,34 +140,34 @@ def get_tweets(refreshed_token):
                 response_time = round(response_time_diff.total_seconds() / 60)
                 print(f"Response time: {response_time} mins")
 
-                tweet_wo_rt_id = find_tweet_id_by_cad_number(cad_number)
-                if tweet_wo_rt_id:
-                    print(f"Call tweeted already but without RT, adding RT in reply...{tweet_wo_rt_id}")
-                    new_reply = f"SFPD on-scene, response time: {response_time}m{disposition}"
-                    response = post_tweet_reply(tweet_wo_rt_id, new_reply, refreshed_token)
-                    tweet_wo_rt_id = json.loads(response.text)["data"]["id"]
-                    if response.status_code == 201:
-                        mark_cad_posted(cad_number, tweet_wo_rt_id)
-                        print(f"Posted Reply Tweet w RT CAD {cad_number} posted with ID: {tweet_wo_rt_id}")
-                    elif response.status_code == 429:
-                        print("ERROR 429, MAXED OUT RATE LIMIT")
-                    elif response.status_code == 403:
-                        response_data = response.json()
-                        if 'errors' in response_data:
-                            for error in response_data['errors']:
-                                if 'code' in error and error['code'] == 187:
-                                    mark_cad_posted(cad_number, tweet_wo_rt_id)
-                                    print("Duplicate tweet detected, added to Posted Tweets. Error:", error['message'])
-                    else:
-                        print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
-                else:
-                    new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
-                    call_tweets.append(new_tweet)
+                # tweet_wo_rt_id = find_tweet_id_by_cad_number(cad_number)
+                # if tweet_wo_rt_id:
+                #     print(f"Call tweeted already but without RT, adding RT in reply...{tweet_wo_rt_id}")
+                #     new_reply = f"SFPD on-scene, response time: {response_time}m{disposition}"
+                #     response = post_tweet_reply(tweet_wo_rt_id, new_reply, refreshed_token)
+                #     tweet_wo_rt_id = json.loads(response.text)["data"]["id"]
+                #     if response.status_code == 201:
+                #         mark_cad_posted(cad_number, tweet_wo_rt_id)
+                #         print(f"Posted Reply Tweet w RT CAD {cad_number} posted with ID: {tweet_wo_rt_id}")
+                #     elif response.status_code == 429:
+                #         print("ERROR 429, MAXED OUT RATE LIMIT")
+                #     elif response.status_code == 403:
+                #         response_data = response.json()
+                #         if 'errors' in response_data:
+                #             for error in response_data['errors']:
+                #                 if 'code' in error and error['code'] == 187:
+                #                     mark_cad_posted(cad_number, tweet_wo_rt_id)
+                #                     print("Duplicate tweet detected, added to Posted Tweets. Error:", error['message'])
+                #     else:
+                #         print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
+                # else:
+                new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD response time: {response_time}m{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+                call_tweets.append(new_tweet)
             except KeyError:
-                global tweet_wo_rt_existing_data
-                if cad_number in tweet_wo_rt_existing_data:
-                    print(f'Already posted tweet w/o RT with this CAD #{cad_number}')
-                    continue
+                # global tweet_wo_rt_existing_data
+                # if cad_number in tweet_wo_rt_existing_data:
+                #     print(f'Already posted tweet w/o RT with this CAD #{cad_number}')
+                #     continue
                 print("No response time yet, adding tweet as wo rt")
                 new_tweet_wo = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}, {on_view_text}SFPD currently responding... urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
                 call_tweets.append(new_tweet_wo)
@@ -202,18 +201,18 @@ def post_tweet(payload, token):
     )
 
 
-def post_tweet_reply(tweet_id, tweet, token):
-    payload = {"text": tweet}
-    print("Trying to reply to an earlier Tweet!")
-    return requests.request(
-        "POST",
-        f"https://api.twitter.com/2/tweets/{tweet_id}/reply",
-        json=payload,
-        headers={
-            "Authorization": f"Bearer {token['access_token']}",
-            "Content-Type": "application/json",
-        },
-    )
+# def post_tweet_reply(tweet_id, tweet, token):
+#     payload = {"text": tweet}
+#     print("Trying to reply to an earlier Tweet!")
+#     return requests.request(
+#         "POST",
+#         f"https://api.twitter.com/2/tweets/{tweet_id}/reply",
+#         json=payload,
+#         headers={
+#             "Authorization": f"Bearer {token['access_token']}",
+#             "Content-Type": "application/json",
+#         },
+#     )
 
 
 client = secretmanager.SecretManagerServiceClient()
@@ -246,7 +245,7 @@ def run_bot(cloud_event):
     j_refreshed_token = json.loads(st_refreshed_token)
     r.set("token", j_refreshed_token)
 
-    tweets = get_tweets(refreshed_token)
+    tweets = get_tweets()
     for tweet in tweets:
         payload = {"text": tweet}
         response = post_tweet(payload, refreshed_token)
@@ -255,15 +254,15 @@ def run_bot(cloud_event):
             tweet_id = json.loads(response.text)["data"]["id"]
             cad_number = payload["text"][-9:]
 
-            contains_response_time = "SFPD response time:" in tweet
-            if not contains_response_time:
-                global tweet_wo_rt_existing_data
-                tweets_wo_rt_new_data = f"{cad_number}-{tweet_id}\n"
-                tweet_wo_rt_existing_data += tweets_wo_rt_new_data
-                tweets_wo_rt_blob.upload_from_string(tweet_wo_rt_existing_data)
-                print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
-            else:
-                mark_cad_posted(cad_number, tweet_id)
-                print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
+            # contains_response_time = "SFPD response time:" in tweet
+            # if not contains_response_time:
+            #     global tweet_wo_rt_existing_data
+            #     tweets_wo_rt_new_data = f"{cad_number}-{tweet_id}\n"
+            #     tweet_wo_rt_existing_data += tweets_wo_rt_new_data
+            #     tweets_wo_rt_blob.upload_from_string(tweet_wo_rt_existing_data)
+            #     print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
+            # else:
+            mark_cad_posted(cad_number, tweet_id)
+            print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
         else:
             print(f"Tweet posting failed. Error {response.status_code}")

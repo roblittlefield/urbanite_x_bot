@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 import os
 
 # Setting up Redis
-# r = redis.from_url(REDIS_URL)
+redis_url = "rediss://red-cjl8i95k5scs73dvjh70:7K8SENjbGrEUTG6XZ60uuyRjqSfLx6MI@oregon-redis.render.com:6379"
+r = redis.from_url(redis_url)
 
 
 # Set a variable for app to initialize it
@@ -21,15 +22,12 @@ app = Flask(__name__)
 app.secret_key = os.urandom(50)
 
 # Twitter OAuth 2.0
-# client_id = CLIENT_ID
-# client_secret = CLIENT_SECRET
-# redirect_uri = REDIRECT_URI
-client_id = os.environ.get("CLIENT_ID")
-client_secret = os.environ.get("CLIENT_SECRET")
-redirect_uri = os.environ.get("REDIRECT_URI")
+client_id = "NzFLTEozQkpBMHUwQnlMSU5YVWk6MTpjaQ"
+client_secret = "QbU4sMUkCLT92OnNqiG81cenEuxpEEHKYZ4CPf663qUjiDa0Dy"
+redirect_uri = 'http://127.0.0.1:5000/oauth/callback'
 auth_url = "https://twitter.com/i/oauth2/authorize"
 token_url = "https://api.twitter.com/2/oauth2/token"
-# scopes = ["tweet.write", "offline.access"]
+
 scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
 
 code_verifier = base64.urlsafe_b64encode(os.urandom(30)).decode("utf-8")
@@ -40,7 +38,8 @@ code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
 code_challenge = code_challenge.replace("=", "")
 
 
-
+def make_token():
+    return OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
 
 
 def get_calls():
