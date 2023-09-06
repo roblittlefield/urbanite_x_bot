@@ -77,7 +77,7 @@ def get_tweets():
             else:
                 on_view_text = ""
             if cad_number in posted_tweets_existing_data:
-                # print(f'Already posted tweet with this CAD #{cad_number}')
+                # print(f'Already posted tweet with this CAD #{cad_number} earlier')
                 already_posted += 1
                 continue
 
