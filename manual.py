@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import os
 
 # Setting up Redis
-redis_url = "rediss://red-cjl8i95k5scs73dvjh70:7K8SENjbGrEUTG6XZ60uuyRjqSfLx6MI@oregon-redis.render.com:6379"
+redis_url = ""
 r = redis.from_url(redis_url)
 
 
@@ -22,9 +22,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(50)
 
 # Twitter OAuth 2.0
-client_id = "NzFLTEozQkpBMHUwQnlMSU5YVWk6MTpjaQ"
-client_secret = "QbU4sMUkCLT92OnNqiG81cenEuxpEEHKYZ4CPf663qUjiDa0Dy"
-redirect_uri = 'http://127.0.0.1:5000/oauth/callback'
+client_id = ""
+client_secret = ""
+redirect_uri = ''
 auth_url = "https://twitter.com/i/oauth2/authorize"
 token_url = "https://api.twitter.com/2/oauth2/token"
 
