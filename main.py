@@ -131,6 +131,7 @@ def mark_cad_posted(cad_number, tweet_id):
     posted_tweets_existing_data += posted_tweets_new_data
     posted_tweets_blob.upload_from_string(posted_tweets_existing_data)
     print(f"Added call #{cad_number} with Tweet ID: {tweet_id}")
+    return ''
 
 
 def make_token():
@@ -222,3 +223,4 @@ def run_bot(cloud_event):
             print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
 
     print(f"Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}.")
+    return 'OK'
