@@ -18,7 +18,13 @@ posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 
 def text_proper_case(text_raw):
-    parts = text_raw.replace('\\\\', '\\').replace('\\', '/').replace(r'0(\d)', r'\1').split('/')
+    text_raw = text_raw.replace("South of Market", "SoMa")
+    text_raw = text_raw.replace("Oceanview/Merced/Ingleside", "OMI")
+    text_raw = text_raw.replace('\\\\', '\\')
+    text_raw = text_raw.replace('\\', '/')
+    text_raw = re.sub(r'0(\d)', r'\1', text_raw)
+    parts = text_raw.split('/')
+
     for i in range(len(parts)):
         parts[i] = ' '.join(word.capitalize() for word in parts[i].split())
     text = ' / '.join(parts).strip()[:45]
@@ -69,7 +75,7 @@ def get_tweets():
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        if call["call_type_final"] == str(217) or call["call_type_final"] == str(219) or call["call_type_final"] == str(212):
+        if call["call_type_final"] == str(217) or call["call_type_final"] == str(219) or call["call_type_final"] == str(212) or call["call_type_final"] == str(603) or call["call_type_final"] == str(646):
             cad_number = call["cad_number"]
             on_view = call["onview_flag"]
             if on_view == "Y":
@@ -77,7 +83,6 @@ def get_tweets():
             else:
                 on_view_text = ""
             if cad_number in posted_tweets_existing_data:
-                # print(f'Already posted tweet with this CAD #{cad_number} earlier')
                 already_posted += 1
                 continue
 
@@ -99,7 +104,7 @@ def get_tweets():
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
-                if disposition == "No merit":
+                if disposition == ", No merit":
                     continue
             except KeyError:
                 disposition = ""
@@ -119,7 +124,7 @@ def get_tweets():
             except KeyError:
                 response_time_str = ""
 
-            new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition}  urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+            new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
             call_tweets.append(new_tweet)
 
     return call_tweets
