@@ -138,8 +138,10 @@ def get_tweets():
                 response_time_str = ""
 
             neighborhood = get_neighborhood(call['analysis_neighborhood'])
+            if not neighborhood:
+                neighborhood = call['analysis_neighborhood']
 
-            new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+            new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
             call_tweets.append(new_tweet)
 
     return call_tweets
