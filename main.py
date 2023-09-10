@@ -48,24 +48,24 @@ def get_calls():
 
 def get_police_disposition_text(code):
     disposition_ref = {
-        "ABA": "Officer abated",
-        "ADM": "Officer admonished",
-        "ADV": "Officer advised",
-        "ARR": "Arrest made",
-        "CAN": "Call cancelled",
+        "ABA": "officer abated",
+        "ADM": "officer admonished",
+        "ADV": "officer advised",
+        "ARR": "arrest made",
+        "CAN": "call cancelled",
         "CSA": "CPSA assignment",
-        "CIT": "Citation issued",
-        "CRM": "Burglary alarm",
-        "GOA": "Gone on arrival",
-        "HAN": "Officer handled",
-        "NCR": "No issue found",
-        "ND": "Related call",
-        "NOM": "No merit",
-        "PAS": "Home alarm",
-        "REP": "Police report made",
+        "CIT": "citation issued",
+        "CRM": "burglary alarm",
+        "GOA": "gone on arrival",
+        "HAN": "officer handled",
+        "NCR": "no issue found",
+        "ND": "related to another call",
+        "NOM": "no merit",
+        "PAS": "home alarm",
+        "REP": "police report made",
         "SFD": "EMS engaged",
-        "UTL": "Unable to locate",
-        "VAS": "Car alarm",
+        "UTL": "unable to locate",
+        "VAS": "car alarm",
     }
     return disposition_ref.get(code)
 
@@ -75,7 +75,8 @@ def get_tweets():
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        if call["call_type_final"] == str(217) or call["call_type_final"] == str(219) or call["call_type_final"] == str(212) or call["call_type_final"] == str(603) or call["call_type_final"] == str(646):
+        included_call_types = ["217", "219", "212", "603", "646"]  # shooting, stabbing, sa robbery, prowler, stalking
+        if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
             on_view = call["onview_flag"]
             if on_view == "Y":
@@ -104,15 +105,15 @@ def get_tweets():
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
-                if disposition == ", No merit":
+                if disposition == ", no merit" or disposition == ", unable to locate":
                     continue
             except KeyError:
                 disposition = ""
 
             try:
-                call_type_desc = call['call_type_final_desc'].title()
+                call_type_desc = call['call_type_final_desc'].upper()
             except KeyError:
-                call_type_desc = call['call_type_original_desc'].title()  # correct
+                call_type_desc = call['call_type_original_desc'].upper()
             print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
@@ -124,7 +125,7 @@ def get_tweets():
             except KeyError:
                 response_time_str = ""
 
-            new_tweet = f"{call_type_desc} at {text_proper_case(call['intersection_name'])} in {call['analysis_neighborhood']} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+            new_tweet = f"{call['analysis_neighborhood'].upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} at {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
             call_tweets.append(new_tweet)
 
     return call_tweets
