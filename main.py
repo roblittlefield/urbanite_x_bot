@@ -18,8 +18,6 @@ posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 
 def text_proper_case(text_raw):
-    text_raw = text_raw.replace("South of Market", "SoMa")
-    text_raw = text_raw.replace("Oceanview/Merced/Ingleside", "OMI")
     text_raw = text_raw.replace('\\\\', '\\')
     text_raw = text_raw.replace('\\', '/')
     text_raw = re.sub(r'0(\d)', r'\1', text_raw)
@@ -70,6 +68,20 @@ def get_police_disposition_text(code):
     return disposition_ref.get(code)
 
 
+def get_neighborhood(neighborhood_raw):
+    neighborhood_formatted = {
+        "Financial District/South Beach": "Financial",
+        "Lone Mountain/USF": "USF",
+        "Castro/Upper Market": "Castro",
+        "Sunset/Parkside": "Sunset",
+        "West of Twin Peaks": "W Twin Peaks",
+        "Bayview Hunters Point": "Bayview",
+        "Oceanview/Merced/Ingleside": "OMI",
+        "South of Market": "SoMa",
+    }
+    return neighborhood_formatted.get(neighborhood_raw)
+
+
 def get_tweets():
     global already_posted
     calls = get_calls()
@@ -105,15 +117,15 @@ def get_tweets():
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
-                if disposition == ", no merit" or disposition == ", unable to locate":
+                if disposition == ", no merit":
                     continue
             except KeyError:
                 disposition = ""
 
             try:
-                call_type_desc = call['call_type_final_desc'].upper()
+                call_type_desc = call['call_type_final_desc'].title()
             except KeyError:
-                call_type_desc = call['call_type_original_desc'].upper()
+                call_type_desc = call['call_type_original_desc'].title()
             print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
@@ -125,7 +137,9 @@ def get_tweets():
             except KeyError:
                 response_time_str = ""
 
-            new_tweet = f"{call['analysis_neighborhood'].upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} at {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
+            neighborhood = get_neighborhood(call['analysis_neighborhood'])
+
+            new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
             call_tweets.append(new_tweet)
 
     return call_tweets
