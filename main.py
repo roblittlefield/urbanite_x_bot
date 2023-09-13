@@ -16,6 +16,10 @@ posted_tweets_file = "posted_tweets.csv"
 posted_tweets_blob = bucket.blob(posted_tweets_file)
 posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
+tweets_wo_rt_file = "tweets_wo_rt.csv"
+tweets_wo_rt_blob = bucket.blob(tweets_wo_rt_file)
+tweet_wo_rt_existing_data = tweets_wo_rt_blob.download_as_text()
+
 
 def text_proper_case(text_raw):
     text_raw = text_raw.replace('\\\\', '\\')
@@ -25,9 +29,10 @@ def text_proper_case(text_raw):
 
     for i in range(len(parts)):
         parts[i] = ' '.join(word.capitalize() for word in parts[i].split())
+        if parts[i][0] == "0":
+            parts[i] = parts[i][1:]
+        parts[i] = parts[i].replace("Mcc", "McC")
     text = ' / '.join(parts).strip()[:45]
-    if text[0] == "0":
-        text = text[1:]
     return text
 
 
@@ -82,7 +87,21 @@ def get_neighborhood(neighborhood_raw):
     return neighborhood_formatted.get(neighborhood_raw)
 
 
-def get_tweets():
+def find_tweet_id_by_cad_number(cad_number_try):
+    try:
+        with open("tweets_wo_rt.csv", 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                parts = line.strip().split('-')
+                if len(parts) == 2 and parts[0].strip() == cad_number_try:
+                    return parts[1].strip()
+            return None  # Cad number not found
+    except FileNotFoundError:
+        print(f"The file 'tweets_wo_rt.csv' was not found.")
+        return None
+
+
+def get_tweets(refreshed_token):
     global already_posted
     calls = get_calls()
     call_tweets = []
@@ -90,14 +109,15 @@ def get_tweets():
         included_call_types = ["217", "219", "212", "603", "646"]  # shooting, stabbing, sa robbery, prowler, stalking
         if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
+            if cad_number in posted_tweets_existing_data:
+                already_posted += 1
+                continue
+
             on_view = call["onview_flag"]
             if on_view == "Y":
                 on_view_text = ", Officer Observed"
             else:
                 on_view_text = ""
-            if cad_number in posted_tweets_existing_data:
-                already_posted += 1
-                continue
 
             received_date_string = call["received_datetime"]
             received_date = datetime.strptime(received_date_string, '%Y-%m-%dT%H:%M:%S.%f')
@@ -128,21 +148,32 @@ def get_tweets():
                 call_type_desc = call['call_type_original_desc'].title()
             print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
+            neighborhood = get_neighborhood(call['analysis_neighborhood'])
+            if not neighborhood:
+                neighborhood = call['analysis_neighborhood']
+
             try:
                 onscene_date_string = call["onscene_datetime"]
                 onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
                 response_time_diff = onscene_date - received_date
                 response_time = round(response_time_diff.total_seconds() / 60)
-                response_time_str = f", SFPD response time: {response_time}m"
+                if not on_view == "Y":
+                    response_time_str = f", SFPD response time: {response_time}m"
+                else:
+                    response_time_str = ""
             except KeyError:
                 response_time_str = ""
 
-            neighborhood = get_neighborhood(call['analysis_neighborhood'])
-            if not neighborhood:
-                neighborhood = call['analysis_neighborhood']
-
-            new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad_number={call['cad_number'] }"
-            call_tweets.append(new_tweet)
+            tweet_id = find_tweet_id_by_cad_number(cad_number)
+            if tweet_id:
+                if len(response_time_str) > 5:
+                    reply_tweet = f"{response_time_str[2:]}{disposition}"
+                    response = post_reply(tweet_id, reply_tweet, refreshed_token)
+                    new_tweet_id = json.loads(response.text)["data"]["id"]
+                    mark_cad_posted(cad_number, new_tweet_id)
+            else:
+                new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                call_tweets.append(new_tweet)
 
     return call_tweets
 
@@ -171,6 +202,33 @@ def post_tweet(payload, token):
             "Content-Type": "application/json",
         },
     )
+
+
+def post_reply(tweet_id, tweet, token):
+    payload = {
+        "text": tweet,
+        "reply": {
+            "in_reply_to_tweet_id": tweet_id
+        }
+    }
+    url = "https://api.twitter.com/2/tweets"
+
+    headers = {
+        "Authorization": "Bearer {}".format(token["access_token"]),
+        "Content-Type": "application/json",
+    }
+
+    print("Sending POST request to:", url)
+    print("Request Headers:", headers)
+    print("Request Body:", json.dumps(payload))
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    print("Response Status Code:", response.status_code)
+    print("Response Headers:", response.headers)
+    print("Response Content:", response.text)
+
+    return response
 
 
 client = secretmanager.SecretManagerServiceClient()
@@ -220,7 +278,7 @@ def run_bot(cloud_event):
     j_refreshed_token = json.loads(st_refreshed_token)
     r.set("token", j_refreshed_token)
 
-    tweets = get_tweets()
+    tweets = get_tweets(refreshed_token)
     for tweet in tweets:
         payload = {
             "text": tweet
@@ -230,8 +288,16 @@ def run_bot(cloud_event):
 
         if response.status_code == 201:
             tweet_id = json.loads(response.text)["data"]["id"]
-            mark_cad_posted(cad_number, tweet_id)
-            print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
+            contains_response_time = "SFPD response time" in tweet
+            if not contains_response_time:
+                global tweet_wo_rt_existing_data
+                tweets_wo_rt_new_data = f"{cad_number}-{tweet_id}\n"
+                tweet_wo_rt_existing_data += tweets_wo_rt_new_data
+                tweets_wo_rt_blob.upload_from_string(tweet_wo_rt_existing_data)
+                print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
+            else:
+                mark_cad_posted(cad_number, tweet_id)
+                print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
         elif response.status_code == 429:
             print(f"ERROR {response.status_code}, MAXED OUT RATE LIMIT")
         elif response.status_code == 403:
