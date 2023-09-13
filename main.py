@@ -169,8 +169,12 @@ def get_tweets(refreshed_token):
                 if len(response_time_str) > 5:
                     reply_tweet = f"{response_time_str[2:]}{disposition}"
                     response = post_reply(tweet_id, reply_tweet, refreshed_token)
-                    new_tweet_id = json.loads(response.text)["data"]["id"]
-                    mark_cad_posted(cad_number, new_tweet_id)
+                    if response.status_code == 201:
+                        new_tweet_id = json.loads(response.text)["data"]["id"]
+                        mark_cad_posted(cad_number, new_tweet_id)
+                    else:
+                        print(f"REPLY tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
+                        continue
             else:
                 new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
                 call_tweets.append(new_tweet)
@@ -308,7 +312,7 @@ def run_bot(cloud_event):
                         mark_cad_posted(cad_number, "duplicate tweet")
                         print("Duplicate tweet detected, added to Posted Tweets. Error:", error['message'])
         else:
-            print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
+            print(f"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
 
     print(f"Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}.")
     return 'OK'
