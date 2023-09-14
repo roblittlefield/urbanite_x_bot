@@ -83,10 +83,10 @@ def get_tweets():
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        try:
-            address = call['intersection_name'].title()
-        except KeyError:
-            continue
+        # try:
+        #     address = call['intersection_name'].title()
+        # except KeyError:
+        #     continue
         # if call["call_type_final"] == str(852) and (("Fulton" in address and "Pierce" in address) or ("Fulton" in address and "Scott" in address) or ("Scott" in address and "Grove" in address) or ("Scott" in address and "Hayes" in address) or ("Hayes" in address and "Pierce" in address) or ("Hayes" in address and "Steiner" in address) or ("Steiner" in address and "Grove" in address) or ("Steiner" in address and "Fulton" in address)):
         if call["call_type_final"] == str(851) or call["call_type_final"] == str(852):  # 851 stolen car, 852 car break-in
             if call["call_type_final"] == str(851):
