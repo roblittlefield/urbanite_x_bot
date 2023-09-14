@@ -249,5 +249,5 @@ def run_bot(cloud_event):
         else:
             print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
 
-    print(f"Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}.")
+    print(f"BREAKINS: Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}.")
     return 'OK'

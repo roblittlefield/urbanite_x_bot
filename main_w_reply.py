@@ -98,7 +98,7 @@ def find_tweet_id_by_cad_number(cad_number_try, blob):
             parts = line.strip().split('-')
             if len(parts) == 2 and parts[0].strip() == cad_number_try:
                 return parts[1].strip()
-        return None  # Cad number not found
+        return None
     except FileNotFoundError:
         print(f"The blob {blob} for {cad_number_try} was not found in bucket.")
         return None
@@ -121,7 +121,7 @@ def get_tweets(refreshed_token):
 
             on_view = call["onview_flag"]
             if on_view == "Y":
-                on_view_text = ", Officer Observed"
+                on_view_text = ", officer observed"
             else:
                 on_view_text = ""
 
@@ -348,5 +348,5 @@ def run_bot(cloud_event):
         else:
             print(f"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
 
-    print(f"Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}, new replies: {replies}.")
+    print(f"SEVERE INCIDENTS: Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}, new replies: {replies}.")
     return 'OK'
