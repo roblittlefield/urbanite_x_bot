@@ -16,6 +16,14 @@ posted_tweets_file = "posted_tweets.csv"
 posted_tweets_blob = bucket.blob(posted_tweets_file)
 posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
+tweets_awaiting_rt_file = "tweets_awaiting_rt.csv"
+tweets_awaiting_rt_blob = bucket.blob(tweets_awaiting_rt_file)
+tweet_awaiting_rt_existing_data = tweets_awaiting_rt_blob.download_as_text()
+
+tweets_awaiting_disposition_file = "tweets_awaiting_disposition.csv"
+tweets_awaiting_disposition_blob = bucket.blob(tweets_awaiting_disposition_file)
+tweets_awaiting_disposition_existing_data = tweets_awaiting_disposition_blob.download_as_text()
+
 
 def text_proper_case(text_raw):
     text_raw = text_raw.replace('\\\\', '\\')
@@ -83,8 +91,23 @@ def get_neighborhood(neighborhood_raw):
     return neighborhood_formatted.get(neighborhood_raw)
 
 
+def find_tweet_id_by_cad_number(cad_number_try, blob):
+    try:
+        lines = blob.split('\n')
+        for line in lines:
+            parts = line.strip().split('-')
+            if len(parts) == 2 and parts[0].strip() == cad_number_try:
+                return parts[1].strip()
+        return None  # Cad number not found
+    except FileNotFoundError:
+        print(f"The blob {blob} for {cad_number_try} was not found in bucket.")
+        return None
+
+
 def get_tweets(refreshed_token):
+    global tweets_awaiting_disposition_existing_data
     global already_posted
+    global replies
     calls = get_calls()
     call_tweets = []
     for call in calls:
@@ -146,8 +169,46 @@ def get_tweets(refreshed_token):
             except KeyError:
                 response_time_str = ""
 
-            new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
-            call_tweets.append(new_tweet)
+            tweet_id = find_tweet_id_by_cad_number(cad_number, tweet_awaiting_rt_existing_data)
+            if tweet_id:
+                print("Previous tweet w/o RT or disposition (or both) found")
+                if response_time_str != "":
+                    print("New RT and/or disp found, trying to tweet reply")
+                    replies += 1
+                    if disposition == "":
+                        reply_rt_tweet = f"{response_time_str[2:]}"
+                        response = post_reply(tweet_id, reply_rt_tweet, refreshed_token)
+                        if response.status_code == 201:
+                            new_reply_rt_id = json.loads(response.text)["data"]["id"]
+
+                            tweets_awaiting_disposition_new_data = f"{cad_number}-{new_reply_rt_id}\n"
+                            tweets_awaiting_disposition_existing_data += tweets_awaiting_disposition_new_data
+                            tweets_awaiting_disposition_blob.upload_from_string(tweets_awaiting_disposition_existing_data)
+                            print(f"Tweet without disposition, CAD {cad_number} posted with ID: {tweet_id}")
+                        else:
+                            print(f"REPLY tweet w/o disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
+                            continue
+                    else:
+                        tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
+                        if tweet_wo_disp_id:
+                            reply_tweet = f"Outcome: {disposition[2:]}"
+                            print("Already had RT, replying with just disposition")
+                        else:
+                            reply_tweet = f"{response_time_str[2:]}{disposition}"
+                            print("Trying to reply with RT and disposition")
+                        response = post_reply(tweet_id, reply_tweet, refreshed_token)
+                        print("Tweeted reply with disposition and RT")
+                        if response.status_code == 201:
+                            new_reply_disp_id = json.loads(response.text)["data"]["id"]
+                            mark_cad_posted(cad_number, new_reply_disp_id)
+                            print(f"Replied to CAD {cad_number}, posted with ID: {new_reply_disp_id}")
+                        else:
+                            print(f"REPLY tweet with disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
+                            continue
+
+            else:
+                new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                call_tweets.append(new_tweet)
 
     return call_tweets
 
@@ -176,6 +237,33 @@ def post_tweet(payload, token):
             "Content-Type": "application/json",
         },
     )
+
+
+def post_reply(tweet_id, tweet, token):
+    payload = {
+        "text": tweet,
+        "reply": {
+            "in_reply_to_tweet_id": tweet_id
+        }
+    }
+    url = "https://api.twitter.com/2/tweets"
+
+    headers = {
+        "Authorization": "Bearer {}".format(token["access_token"]),
+        "Content-Type": "application/json",
+    }
+
+    print("Sending POST request to:", url)
+    print("Request Headers:", headers)
+    print("Request Body:", json.dumps(payload))
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    print("Response Status Code:", response.status_code)
+    print("Response Headers:", response.headers)
+    print("Response Content:", response.text)
+
+    return response
 
 
 client = secretmanager.SecretManagerServiceClient()
@@ -237,9 +325,16 @@ def run_bot(cloud_event):
 
         if response.status_code == 201:
             tweet_id = json.loads(response.text)["data"]["id"]
-
-            mark_cad_posted(cad_number, tweet_id)
-            print(f"Tweeted CAD {cad_number} posted with ID: {tweet_id}")
+            contains_response_time = "SFPD response time" in tweet
+            if not contains_response_time:
+                global tweet_awaiting_rt_existing_data
+                tweet_awaiting_rt_new_data = f"{cad_number}-{tweet_id}\n"
+                tweet_awaiting_rt_existing_data += tweet_awaiting_rt_new_data
+                tweets_awaiting_rt_blob.upload_from_string(tweet_awaiting_rt_existing_data)
+                print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
+            else:
+                mark_cad_posted(cad_number, tweet_id)
+                print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
         elif response.status_code == 429:
             print(f"ERROR {response.status_code}, MAXED OUT RATE LIMIT")
         elif response.status_code == 403:

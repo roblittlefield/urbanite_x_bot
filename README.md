@@ -199,7 +199,7 @@ def get_tweets(refreshed_token):
 
 ### Avoiding Duplicates
 
-To avoid duplicate Twitter API POSTs, details for each tweet are saved in a Google Cloud Bucket storage container. 
+To avoid duplicate Twitter API POSTs, details for each tweet are saved in a Google Cloud Bucket storage container.
 
 ```python
 # Accessing the storage bucket
@@ -213,7 +213,8 @@ posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 tweets_wo_rt_file = "tweets_wo_rt.csv"
 tweets_wo_rt_blob = bucket.blob(tweets_wo_rt_file)
-tweet_wo_rt_existing_data = tweets_wo_rt_blob.download_as_text()
+tweet_awaiting_rt_existing_data = tweets_wo_rt_blob.download_as_text()
+
 
 # Saving Data to the bucket CSV files
 def mark_cad_posted(cad_number, tweet_id):
