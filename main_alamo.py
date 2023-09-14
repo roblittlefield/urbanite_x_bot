@@ -12,23 +12,18 @@ storage_client = storage.Client()
 bucket_name = "urbanite-x-bot-data"
 bucket = storage_client.bucket(bucket_name)
 
-posted_tweets_file = "posted_tweets.csv"
+posted_tweets_file = "posted_tweets_break_ins.csv"
 posted_tweets_blob = bucket.blob(posted_tweets_file)
 posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 
 def text_proper_case(text_raw):
-    text_raw = text_raw.replace('\\\\', '\\')
-    text_raw = text_raw.replace('\\', '/')
-    text_raw = re.sub(r'0(\d)', r'\1', text_raw)
-    parts = text_raw.split('/')
-
+    parts = text_raw.replace('\\\\', '\\').replace('\\', '/').replace(r'0(\d)', r'\1').split('/')
     for i in range(len(parts)):
         parts[i] = ' '.join(word.capitalize() for word in parts[i].split())
-        if parts[i][0] == "0":
-            parts[i] = parts[i][1:]
-        parts[i] = parts[i].replace("Mcc", "McC")
     text = ' / '.join(parts).strip()[:45]
+    if text[0] == "0":
+        text = text[1:]
     return text
 
 
@@ -43,6 +38,20 @@ def get_calls():
     data_sf = response.json()
     call_count = len(data_sf)
     return data_sf
+
+
+def get_neighborhood(neighborhood_raw):
+    neighborhood_formatted = {
+        "Financial District/South Beach": "Financial",
+        "Lone Mountain/USF": "USF",
+        "Castro/Upper Market": "Castro",
+        "Sunset/Parkside": "Sunset",
+        "West of Twin Peaks": "W Twin Peaks",
+        "Bayview Hunters Point": "Bayview",
+        "Oceanview/Merced/Ingleside": "OMI",
+        "South of Market": "SoMa",
+    }
+    return neighborhood_formatted.get(neighborhood_raw)
 
 
 def get_police_disposition_text(code):
@@ -69,29 +78,25 @@ def get_police_disposition_text(code):
     return disposition_ref.get(code)
 
 
-def get_neighborhood(neighborhood_raw):
-    neighborhood_formatted = {
-        "Financial District/South Beach": "Financial",
-        "Lone Mountain/USF": "USF",
-        "Castro/Upper Market": "Castro",
-        "Sunset/Parkside": "Sunset",
-        "West of Twin Peaks": "W Twin Peaks",
-        "Bayview Hunters Point": "Bayview",
-        "Oceanview/Merced/Ingleside": "OMI",
-        "South of Market": "SoMa",
-    }
-    return neighborhood_formatted.get(neighborhood_raw)
-
-
 def get_tweets():
     global already_posted
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        included_call_types = ["217", "219", "212", "603", "646"]  # shooting, stabbing, sa robbery, prowler, stalking
-        if call["call_type_final"] in included_call_types:
+        try:
+            address = call['intersection_name'].title()
+        except KeyError:
+            continue
+        # if call["call_type_final"] == str(852) and (("Fulton" in address and "Pierce" in address) or ("Fulton" in address and "Scott" in address) or ("Scott" in address and "Grove" in address) or ("Scott" in address and "Hayes" in address) or ("Hayes" in address and "Pierce" in address) or ("Hayes" in address and "Steiner" in address) or ("Steiner" in address and "Grove" in address) or ("Steiner" in address and "Fulton" in address)):
+        if call["call_type_final"] == str(851) or call["call_type_final"] == str(852):  # 851 stolen car, 852 car break-in
+            if call["call_type_final"] == str(851):
+                call_desc = "Stolen vehicle"
+            elif call["call_type_final"] == str(852):
+                call_desc = "Car break-in"
+
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
+                # print(f'Already posted tweet with this CAD #{cad_number} earlier')
                 already_posted += 1
                 continue
 
@@ -112,6 +117,7 @@ def get_tweets():
                 continue
             minutes_ago = round(total_seconds / 60, 1)
             hour = received_date.strftime('%I').lstrip('0')
+            print(f"{call_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             received_date_min = received_date.strftime(f':%M %p')
             received_date_formatted = "at " + hour + received_date_min
@@ -119,16 +125,10 @@ def get_tweets():
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
-                if disposition == ", no merit":
+                if disposition == "No merit":
                     continue
             except KeyError:
                 disposition = ""
-
-            try:
-                call_type_desc = call['call_type_final_desc'].title()
-            except KeyError:
-                call_type_desc = call['call_type_original_desc'].title()
-            print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             neighborhood = get_neighborhood(call['analysis_neighborhood'])
             if not neighborhood:
@@ -146,7 +146,7 @@ def get_tweets():
             except KeyError:
                 response_time_str = ""
 
-            new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+            new_tweet = f"{neighborhood.upper()}: {call_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number']}"  # https://data.sfgov.org/resource/gnap-fj3t.json?cad_number={call['cad_number']}
             call_tweets.append(new_tweet)
 
     return call_tweets
@@ -179,10 +179,10 @@ def post_tweet(payload, token):
 
 
 client = secretmanager.SecretManagerServiceClient()
-client_id = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/CLIENT_ID/versions/latest"}).payload.data.decode("UTF-8")
-client_secret = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/CLIENT_SECRET/versions/latest"}).payload.data.decode("UTF-8")
-redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIRECT_URI/versions/latest"}).payload.data.decode("UTF-8")
-redis_url = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIS_URL/versions/latest"}).payload.data.decode("UTF-8")
+client_id = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/CLIENT_ID_ALAMO/versions/latest"}).payload.data.decode("UTF-8")
+client_secret = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/CLIENT_SECRET_ALAMO/versions/latest"}).payload.data.decode("UTF-8")
+redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIRECT_URI_ALAMO/versions/latest"}).payload.data.decode("UTF-8")
+redis_url = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIS_URL_ALAMO/versions/latest"}).payload.data.decode("UTF-8")
 
 r = redis.from_url(redis_url)
 token_url = "https://api.twitter.com/2/oauth2/token"
@@ -194,10 +194,8 @@ scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
 def run_bot(cloud_event):
     global already_posted
     global call_count
-    global replies
     already_posted = 0
     call_count = 0
-    replies = 0
     twitter = make_token()
     t = r.get("token")
 
@@ -237,9 +235,8 @@ def run_bot(cloud_event):
 
         if response.status_code == 201:
             tweet_id = json.loads(response.text)["data"]["id"]
-
             mark_cad_posted(cad_number, tweet_id)
-            print(f"Tweeted CAD {cad_number} posted with ID: {tweet_id}")
+            print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
         elif response.status_code == 429:
             print(f"ERROR {response.status_code}, MAXED OUT RATE LIMIT")
         elif response.status_code == 403:
@@ -250,7 +247,7 @@ def run_bot(cloud_event):
                         mark_cad_posted(cad_number, "duplicate tweet")
                         print("Duplicate tweet detected, added to Posted Tweets. Error:", error['message'])
         else:
-            print(f"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
+            print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
 
-    print(f"Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}, new replies: {replies}.")
+    print(f"Retrieved calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}.")
     return 'OK'
