@@ -213,7 +213,7 @@ posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 tweets_wo_rt_file = "tweets_wo_rt.csv"
 tweets_wo_rt_blob = bucket.blob(tweets_wo_rt_file)
-tweet_awaiting_rt_existing_data = tweets_wo_rt_blob.download_as_text()
+tweets_awaiting_rt_existing_data = tweets_wo_rt_blob.download_as_text()
 
 
 # Saving Data to the bucket CSV files

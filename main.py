@@ -83,7 +83,7 @@ def get_neighborhood(neighborhood_raw):
     return neighborhood_formatted.get(neighborhood_raw)
 
 
-def get_tweets(refreshed_token):
+def get_tweets():
     global already_posted
     calls = get_calls()
     call_tweets = []
@@ -142,7 +142,7 @@ def get_tweets(refreshed_token):
                 if not on_view == "Y":
                     response_time_str = f", SFPD response time: {response_time}m"
                 else:
-                    response_time_str = ""
+                    response_time_str = ", SFPD dispatched"
             except KeyError:
                 response_time_str = ""
 
@@ -227,7 +227,7 @@ def run_bot(cloud_event):
     j_refreshed_token = json.loads(st_refreshed_token)
     r.set("token", j_refreshed_token)
 
-    tweets = get_tweets(refreshed_token)
+    tweets = get_tweets()
     for tweet in tweets:
         payload = {
             "text": tweet

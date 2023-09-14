@@ -18,7 +18,7 @@ posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 
 tweets_awaiting_rt_file = "tweets_awaiting_rt.csv"
 tweets_awaiting_rt_blob = bucket.blob(tweets_awaiting_rt_file)
-tweet_awaiting_rt_existing_data = tweets_awaiting_rt_blob.download_as_text()
+tweets_awaiting_rt_existing_data = tweets_awaiting_rt_blob.download_as_text()
 
 tweets_awaiting_disposition_file = "tweets_awaiting_disposition.csv"
 tweets_awaiting_disposition_blob = bucket.blob(tweets_awaiting_disposition_file)
@@ -106,6 +106,7 @@ def find_tweet_id_by_cad_number(cad_number_try, blob):
 
 def get_tweets(refreshed_token):
     global tweets_awaiting_disposition_existing_data
+    global tweets_awaiting_rt_existing_data
     global already_posted
     global replies
     calls = get_calls()
@@ -169,7 +170,7 @@ def get_tweets(refreshed_token):
             except KeyError:
                 response_time_str = ""
 
-            tweet_id = find_tweet_id_by_cad_number(cad_number, tweet_awaiting_rt_existing_data)
+            tweet_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_rt_existing_data)
             if tweet_id:
                 print("Previous tweet w/o RT or disposition (or both) found")
                 if response_time_str != "":
@@ -327,10 +328,10 @@ def run_bot(cloud_event):
             tweet_id = json.loads(response.text)["data"]["id"]
             contains_response_time = "SFPD response time" in tweet
             if not contains_response_time:
-                global tweet_awaiting_rt_existing_data
+                global tweets_awaiting_rt_existing_data
                 tweet_awaiting_rt_new_data = f"{cad_number}-{tweet_id}\n"
-                tweet_awaiting_rt_existing_data += tweet_awaiting_rt_new_data
-                tweets_awaiting_rt_blob.upload_from_string(tweet_awaiting_rt_existing_data)
+                tweets_awaiting_rt_existing_data += tweet_awaiting_rt_new_data
+                tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_existing_data)
                 print(f"Tweet without RT, CAD {cad_number} posted with ID: {tweet_id}")
             else:
                 mark_cad_posted(cad_number, tweet_id)
