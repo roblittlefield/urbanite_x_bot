@@ -105,6 +105,7 @@ def find_tweet_id_by_cad_number(cad_number_try, blob):
 
 
 def get_tweets(refreshed_token):
+    global posted_tweets_existing_data
     global tweets_awaiting_disposition_existing_data
     global tweets_awaiting_rt_existing_data
     global already_posted
@@ -197,7 +198,7 @@ def get_tweets(refreshed_token):
                         else:
                             reply_tweet = f"{response_time_str[2:]}{disposition}"
                             print("Trying to reply with RT and disposition")
-                        response = post_reply(tweet_id, reply_tweet, refreshed_token)
+                        response = post_reply(tweet_wo_disp_id, reply_tweet, refreshed_token)
                         print("Tweeted reply with disposition and RT")
                         if response.status_code == 201:
                             new_reply_disp_id = json.loads(response.text)["data"]["id"]

@@ -79,6 +79,7 @@ def get_police_disposition_text(code):
 
 
 def get_tweets():
+    global posted_tweets_existing_data
     global already_posted
     calls = get_calls()
     call_tweets = []
@@ -142,7 +143,7 @@ def get_tweets():
                 if not on_view == "Y":
                     response_time_str = f", SFPD response time: {response_time}m"
                 else:
-                    response_time_str = ", SFPD dispatched"
+                    response_time_str = ""
             except KeyError:
                 response_time_str = ""
 

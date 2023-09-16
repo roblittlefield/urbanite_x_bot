@@ -84,6 +84,7 @@ def get_neighborhood(neighborhood_raw):
 
 
 def get_tweets():
+    global posted_tweets_existing_data
     global already_posted
     calls = get_calls()
     call_tweets = []
