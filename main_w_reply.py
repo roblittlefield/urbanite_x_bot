@@ -112,14 +112,16 @@ def get_tweets(refreshed_token):
     global replies
     calls = get_calls()
     call_tweets = []
+    print('Get Tweets fn call.')
     for call in calls:
         included_call_types = ["217", "219", "212", "603", "646"]  # shooting, stabbing, sa robbery, prowler, stalking
         if call["call_type_final"] in included_call_types:
+            print(call["call_type_final"])
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
                 already_posted += 1
                 continue
-
+            print('CAD not fully posted, proceeding...')
             on_view = call["onview_flag"]
             if on_view == "Y":
                 on_view_text = ", officer observed"
@@ -242,6 +244,7 @@ def post_tweet(payload, token):
 
 
 def post_reply(tweet_id, tweet, token):
+    print('Post Reply fn called')
     payload = {
         "text": tweet,
         "reply": {
@@ -285,6 +288,7 @@ def run_bot(cloud_event):
     global already_posted
     global call_count
     global replies
+    global tweets_awaiting_rt_existing_data
     already_posted = 0
     call_count = 0
     replies = 0
@@ -329,7 +333,6 @@ def run_bot(cloud_event):
             tweet_id = json.loads(response.text)["data"]["id"]
             contains_response_time = "SFPD response time" in tweet
             if not contains_response_time:
-                global tweets_awaiting_rt_existing_data
                 tweet_awaiting_rt_new_data = f"{cad_number}-{tweet_id}\n"
                 tweets_awaiting_rt_existing_data += tweet_awaiting_rt_new_data
                 tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_existing_data)
