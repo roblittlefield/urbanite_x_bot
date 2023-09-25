@@ -114,7 +114,7 @@ def get_tweets(refreshed_token):
     call_tweets = []
     print('Get Tweets fn call.')
     for call in calls:
-        included_call_types = ["217", "219", "212", "603", "646"]  # shooting, stabbing, sa robbery, prowler, stalking
+        included_call_types = ["217", "219"]  # shooting, stabbing, REMOVED: "212" sa robbery, "603" prowler, "646" stalking
         if call["call_type_final"] in included_call_types:
             print(call["call_type_final"])
             cad_number = call["cad_number"]
@@ -135,7 +135,7 @@ def get_tweets(refreshed_token):
             time_difference = time_now - received_date
             total_seconds = time_difference.total_seconds()
             hours_ago = round(total_seconds / 3600, 1)
-            if hours_ago > 12:
+            if hours_ago > 6:
                 continue
             minutes_ago = round(total_seconds / 60, 1)
             hour = received_date.strftime('%I').lstrip('0')
