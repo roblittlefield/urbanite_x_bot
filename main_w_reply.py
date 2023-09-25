@@ -114,14 +114,13 @@ def get_tweets(refreshed_token):
     call_tweets = []
     print('Get Tweets fn call.')
     for call in calls:
-        included_call_types = ["217", "219"]  # shooting, stabbing, REMOVED: "212" sa robbery, "603" prowler, "646" stalking
+        included_call_types = ["217", "219", "212"]  # shooting, stabbing, sa robbery REMOVED: "603" prowler, "646" stalking
         if call["call_type_final"] in included_call_types:
-            print(call["call_type_final"])
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
                 already_posted += 1
                 continue
-            print('CAD not fully posted, proceeding...')
+
             on_view = call["onview_flag"]
             if on_view == "Y":
                 on_view_text = ", officer observed"
@@ -142,7 +141,7 @@ def get_tweets(refreshed_token):
 
             received_date_min = received_date.strftime(f':%M %p')
             received_date_formatted = "at " + hour + received_date_min
-
+            print('CAD <6 hrs & not fully posted, proceeding...')
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
