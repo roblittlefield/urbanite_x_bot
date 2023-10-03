@@ -112,7 +112,6 @@ def get_tweets(refreshed_token):
     global replies
     calls = get_calls()
     call_tweets = []
-    print('Get Tweets fn call.')
     for call in calls:
         included_call_types = ["217", "219", "212"]  # shooting, stabbing, sa robbery REMOVED: "603" prowler, "646" stalking
         if call["call_type_final"] in included_call_types:
@@ -211,6 +210,8 @@ def get_tweets(refreshed_token):
 
             else:
                 new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                if len(new_tweet) < 130:
+                    new_tweet += " #SanFrancisco"
                 call_tweets.append(new_tweet)
 
     return call_tweets
