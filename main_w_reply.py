@@ -113,7 +113,7 @@ def get_tweets(refreshed_token):
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        included_call_types = ["217", "219", "212"]  # shooting, stabbing, sa robbery REMOVED: "603" prowler, "646" stalking
+        included_call_types = ["217", "219"]  # shooting, stabbing REMOVED: "212" sa robbery, "603" prowler, "646" stalking
         if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
