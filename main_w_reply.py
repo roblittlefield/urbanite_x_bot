@@ -210,7 +210,6 @@ def get_tweets(refreshed_token):
 
             else:
                 new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
-                # Removed hashtag
                 call_tweets.append(new_tweet)
 
     return call_tweets
