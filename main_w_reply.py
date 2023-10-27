@@ -155,9 +155,12 @@ def get_tweets(refreshed_token):
                 call_type_desc = call['call_type_original_desc'].title()
             print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
-            neighborhood = get_neighborhood(call['analysis_neighborhood'])
-            if not neighborhood:
-                neighborhood = call['analysis_neighborhood']
+            try:
+                neighborhood = get_neighborhood(call['analysis_neighborhood'])
+                if not neighborhood:
+                    neighborhood = call['analysis_neighborhood']
+            except KeyError:
+                continue
 
             try:
                 onscene_date_string = call["onscene_datetime"]

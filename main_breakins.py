@@ -130,11 +130,12 @@ def get_tweets():
                     continue
             except KeyError:
                 disposition = ""
-
-            neighborhood = get_neighborhood(call['analysis_neighborhood'])
-            if not neighborhood:
-                neighborhood = call['analysis_neighborhood']
-
+            try:
+                neighborhood = get_neighborhood(call['analysis_neighborhood'])
+                if not neighborhood:
+                    neighborhood = call['analysis_neighborhood']
+            except KeyError:
+                continue
             try:
                 onscene_date_string = call["onscene_datetime"]
                 onscene_date = datetime.strptime(onscene_date_string, '%Y-%m-%dT%H:%M:%S.%f')
