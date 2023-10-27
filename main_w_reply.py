@@ -117,6 +117,7 @@ def get_tweets(refreshed_token):
         if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
+                print("already in posted files")
                 already_posted += 1
                 continue
 
@@ -133,7 +134,7 @@ def get_tweets(refreshed_token):
             time_difference = time_now - received_date
             total_seconds = time_difference.total_seconds()
             hours_ago = round(total_seconds / 3600, 1)
-            if hours_ago > 50:
+            if hours_ago > 30:
                 continue
             minutes_ago = round(total_seconds / 60, 1)
             hour = received_date.strftime('%I').lstrip('0')
