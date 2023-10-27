@@ -140,7 +140,7 @@ def get_tweets(refreshed_token):
 
             received_date_min = received_date.strftime(f':%M %p')
             received_date_formatted = "at " + hour + received_date_min
-            print('CAD <6 hrs & not fully posted, proceeding...')
+            print('CAD <50 hrs & not fully posted, proceeding...')
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
@@ -179,8 +179,11 @@ def get_tweets(refreshed_token):
                 print("Previous tweet w/o RT or disposition (or both) found")
                 if response_time_str != "":
                     print("New RT and/or disp found, trying to tweet reply")
-                    replies += 1
+                    tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                     if disposition == "":
+                        if tweet_wo_disp_id:
+                            continue
+                        replies += 1
                         reply_rt_tweet = f"{response_time_str[2:]}"
                         response = post_reply(tweet_id, reply_rt_tweet, refreshed_token)
                         if response.status_code == 201:
@@ -194,7 +197,8 @@ def get_tweets(refreshed_token):
                             print(f"REPLY tweet w/o disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
                             continue
                     else:
-                        tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
+                        replies += 1
+                        # tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                         if tweet_wo_disp_id:
                             reply_tweet = f"Outcome: {disposition[2:]}"
                             print("Already had RT, replying with just disposition")
