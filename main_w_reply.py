@@ -10,6 +10,9 @@ import json
 from datetime import datetime, timedelta
 
 tweets_awaiting_disposition_existing_data = None
+tweets_awaiting_rt_existing_data = None
+posted_tweets_existing_data = None
+
 storage_client = storage.Client()
 bucket_name = "urbanite-x-bot-data"
 bucket = storage_client.bucket(bucket_name)
@@ -117,14 +120,14 @@ def get_tweets(refreshed_token):
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        included_call_types = ["217", "219"]  # shooting, stabbing REMOVED: "212" sa robbery, "603" prowler, "646" stalking
+        included_call_types = ["217", "219", "212", "245", "528", "213", "152"]  # shooting, stabbing, sa robbery, agg assault, fire, purse snatched, drunk driver REMOVED: "603" prowler, "646" stalking
         if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
-                print("already in posted files")
+                print(f"{cad_number} already in posted csv")
                 already_posted += 1
                 continue
-
+            print(f"{cad_number} not in posted csv")
             on_view = call["onview_flag"]
             if on_view == "Y":
                 on_view_text = ", officer observed"
@@ -145,12 +148,9 @@ def get_tweets(refreshed_token):
 
             received_date_min = received_date.strftime(f':%M %p')
             received_date_formatted = "at " + hour + received_date_min
-            print('CAD <50 hrs & not fully posted, proceeding...')
             try:
                 disposition_code = call['disposition']
                 disposition = f", {get_police_disposition_text(disposition_code)}"
-                if disposition == ", no merit":
-                    continue
             except KeyError:
                 disposition = ""
 
@@ -181,13 +181,14 @@ def get_tweets(refreshed_token):
 
             tweet_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_rt_existing_data)
             if tweet_id:
-                print("Previous tweet w/o RT or disposition (or both) found")
+                print("CAD tweeted, trying to reply")
                 if response_time_str != "":
                     print("New RT and/or disp found, trying to tweet reply")
                     tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                     if disposition == "":
                         if tweet_wo_disp_id:
                             continue
+                        print("Replying with RT, no disposition")
                         replies += 1
                         reply_rt_tweet = f"{response_time_str[2:]}"
                         try:
@@ -209,12 +210,12 @@ def get_tweets(refreshed_token):
                         # tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                         if tweet_wo_disp_id:
                             reply_tweet = f"Outcome: {disposition[2:]}"
-                            print("Already had RT, replying with just disposition")
+                            print("Already had RT, replying with disposition")
                         else:
                             reply_tweet = f"{response_time_str[2:]}{disposition}"
-                            print("Trying to reply with RT and disposition")
+                            print("Replying with RT & disposition")
                         response = post_reply(tweet_wo_disp_id, reply_tweet, refreshed_token)
-                        print("Tweeted reply with disposition and RT")
+                        print("Tweeted reply")
                         if response.status_code == 201:
                             new_reply_disp_id = json.loads(response.text)["data"]["id"]
                             mark_cad_posted(cad_number, new_reply_disp_id)
@@ -224,8 +225,10 @@ def get_tweets(refreshed_token):
                             continue
 
             else:
-                # new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
-                new_tweet = f"{call_type_desc} in {neighborhood.upper()} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} #SanFrancisco urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                if disposition == ", no merit":
+                    mark_cad_posted(cad_number, "no merit ")
+                    continue
+                new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
                 call_tweets.append(new_tweet)
 
     return call_tweets
@@ -295,6 +298,7 @@ redis_url = client.access_secret_version(request={"name": "projects/urbanite-x-b
 
 try:
     r = redis.from_url(redis_url)
+    print("r token from redis found")
 except ConnectionError as e:
     print(f"Error connecting to Redis: {e}")
     r = None
@@ -315,6 +319,7 @@ def run_bot(cloud_event):
     replies = 0
     twitter = make_token()
     t = r.get("token")
+    print("r token passed to run_bot")
 
     if r is None:
         print("No token round on Redis...exiting")
