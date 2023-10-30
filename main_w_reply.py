@@ -3,11 +3,13 @@ from google.cloud import storage
 import functions_framework
 import re
 import redis
+from redis.exceptions import ConnectionError
 from requests_oauthlib import OAuth2Session
 import requests
 import json
 from datetime import datetime, timedelta
 
+tweets_awaiting_disposition_existing_data = None
 storage_client = storage.Client()
 bucket_name = "urbanite-x-bot-data"
 bucket = storage_client.bucket(bucket_name)
@@ -97,7 +99,9 @@ def find_tweet_id_by_cad_number(cad_number_try, blob):
         for line in lines:
             parts = line.strip().split('-')
             if len(parts) == 2 and parts[0].strip() == cad_number_try:
-                return parts[1].strip()
+                tweet_id = parts[1].strip()
+                print(f"trying to reply to {tweet_id}")
+                return tweet_id
         return None
     except FileNotFoundError:
         print(f"The blob {blob} for {cad_number_try} was not found in bucket.")
@@ -186,7 +190,10 @@ def get_tweets(refreshed_token):
                             continue
                         replies += 1
                         reply_rt_tweet = f"{response_time_str[2:]}"
-                        response = post_reply(tweet_id, reply_rt_tweet, refreshed_token)
+                        try:
+                            response = post_reply(tweet_id, reply_rt_tweet, refreshed_token)
+                        except ValueError as e:
+                            print(f"Error: {e}")
                         if response.status_code == 201:
                             new_reply_rt_id = json.loads(response.text)["data"]["id"]
 
@@ -217,7 +224,8 @@ def get_tweets(refreshed_token):
                             continue
 
             else:
-                new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                # new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                new_tweet = f"{call_type_desc} in {neighborhood.upper()} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} #SanFrancisco urbanitesf.netlify.app/?cad={call['cad_number'] }"
                 call_tweets.append(new_tweet)
 
     return call_tweets
@@ -250,6 +258,8 @@ def post_tweet(payload, token):
 
 
 def post_reply(tweet_id, tweet, token):
+    if tweet_id is None:
+        raise ValueError("tweet_id is None, cannot post reply")
     print('Post Reply fn called')
     payload = {
         "text": tweet,
@@ -283,7 +293,12 @@ client_secret = client.access_secret_version(request={"name": "projects/urbanite
 redirect_uri = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIRECT_URI/versions/latest"}).payload.data.decode("UTF-8")
 redis_url = client.access_secret_version(request={"name": "projects/urbanite-x-bot/secrets/REDIS_URL/versions/latest"}).payload.data.decode("UTF-8")
 
-r = redis.from_url(redis_url)
+try:
+    r = redis.from_url(redis_url)
+except ConnectionError as e:
+    print(f"Error connecting to Redis: {e}")
+    r = None
+    raise e
 token_url = "https://api.twitter.com/2/oauth2/token"
 auth_url = "https://twitter.com/i/oauth2/authorize"
 scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
