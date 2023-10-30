@@ -8,6 +8,7 @@ import requests
 import json
 from datetime import datetime, timedelta
 
+posted_tweets_existing_data = None
 storage_client = storage.Client()
 bucket_name = "urbanite-x-bot-data"
 bucket = storage_client.bucket(bucket_name)
@@ -84,22 +85,17 @@ def get_tweets():
     calls = get_calls()
     call_tweets = []
     for call in calls:
-        # try:
-        #     address = call['intersection_name'].title()
-        # except KeyError:
-        #     continue
-        # if call["call_type_final"] == str(852) and (("Fulton" in address and "Pierce" in address) or ("Fulton" in address and "Scott" in address) or ("Scott" in address and "Grove" in address) or ("Scott" in address and "Hayes" in address) or ("Hayes" in address and "Pierce" in address) or ("Hayes" in address and "Steiner" in address) or ("Steiner" in address and "Grove" in address) or ("Steiner" in address and "Fulton" in address)):
         if call["call_type_final"] == str(851) or call["call_type_final"] == str(852):  # 851 stolen car, 852 car break-in
+            cad_number = call["cad_number"]
+            if cad_number in posted_tweets_existing_data:
+                print(f'Break-in/GTA Posted Already CAD #{cad_number}')
+                already_posted += 1
+                continue
+
             if call["call_type_final"] == str(851):
                 call_desc = "Stolen vehicle"
             elif call["call_type_final"] == str(852):
                 call_desc = "Car break-in"
-
-            cad_number = call["cad_number"]
-            if cad_number in posted_tweets_existing_data:
-                # print(f'Already posted tweet with this CAD #{cad_number} earlier')
-                already_posted += 1
-                continue
 
             on_view = call["onview_flag"]
             if on_view == "Y":
@@ -157,11 +153,14 @@ def get_tweets():
 def mark_cad_posted(cad_number, tweet_id):
     global posted_tweets_existing_data
     posted_tweets_new_data = f"{cad_number}-{tweet_id}\n"
-    posted_tweets_existing_data += posted_tweets_new_data
-    posted_tweets_blob.upload_from_string(posted_tweets_existing_data)
-    print(f"Added call #{cad_number} with Tweet ID: {tweet_id}")
+    try:
+        posted_tweets_existing_data += posted_tweets_new_data
+        posted_tweets_blob.upload_from_string(posted_tweets_existing_data)
+        print(f"Added call #{cad_number} with Tweet ID: {tweet_id}")
+    except Exception as e:
+        print(f"Error adding call #{cad_number} with Tweet ID: {tweet_id}")
+        print(f"Error details: {str(e)}")
     return ''
-
 
 def make_token():
     return OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
@@ -238,9 +237,9 @@ def run_bot(cloud_event):
         if response.status_code == 201:
             tweet_id = json.loads(response.text)["data"]["id"]
             mark_cad_posted(cad_number, tweet_id)
-            print(f"Tweeted w RT, CAD {cad_number} posted with ID: {tweet_id}")
+            print(f"Tweeted breakin/GTA CAD {cad_number} posted with ID: {tweet_id}")
         elif response.status_code == 429:
-            print(f"ERROR {response.status_code}, MAXED OUT RATE LIMIT")
+            print(f"BREAKIN ERROR {response.status_code}, MAXED OUT RATE LIMIT")
         elif response.status_code == 403:
             response_data = response.json()
             if 'errors' in response_data:
