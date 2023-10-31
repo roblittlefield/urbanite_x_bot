@@ -124,7 +124,7 @@ def get_tweets(refreshed_token):
         if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
-                print(f"{cad_number} already in posted csv")
+                # print(f"{cad_number} already in posted csv")
                 already_posted += 1
                 continue
             print(f"{cad_number} not in posted csv")
@@ -180,22 +180,21 @@ def get_tweets(refreshed_token):
                 response_time_str = ""
 
             tweet_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_rt_existing_data)
-            if tweet_id:
-                print("CAD tweeted, trying to reply")
+            if tweet_id is not None:
+                print("CAD tweeted, looking for RT / disp")
                 if response_time_str != "":
-                    print("New RT and/or disp found, trying to tweet reply")
                     tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                     if disposition == "":
                         if tweet_wo_disp_id:
                             continue
                         print("Replying with RT, no disposition")
-                        replies += 1
                         reply_rt_tweet = f"{response_time_str[2:]}"
                         try:
                             response = post_reply(tweet_id, reply_rt_tweet, refreshed_token)
                         except ValueError as e:
                             print(f"Error: {e}")
                         if response.status_code == 201:
+                            replies += 1
                             new_reply_rt_id = json.loads(response.text)["data"]["id"]
 
                             tweets_awaiting_disposition_new_data = f"{cad_number}-{new_reply_rt_id}\n"
@@ -206,8 +205,6 @@ def get_tweets(refreshed_token):
                             print(f"REPLY tweet w/o disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
                             continue
                     else:
-                        replies += 1
-                        # tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                         if tweet_wo_disp_id:
                             reply_tweet = f"Outcome: {disposition[2:]}"
                             print("Already had RT, replying with disposition")
@@ -219,15 +216,18 @@ def get_tweets(refreshed_token):
                         if response is None:
                             continue
                         if response.status_code == 201:
+                            replies += 1
                             new_reply_disp_id = json.loads(response.text)["data"]["id"]
                             mark_cad_posted(cad_number, new_reply_disp_id)
                             print(f"Replied to CAD {cad_number}, posted with ID: {new_reply_disp_id}")
                         else:
                             print(f"REPLY tweet with disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
                             continue
-
+                else:
+                    print("No RT found, moving on.")
             else:
                 if disposition == ", no merit":
+                    print("Disposition = no merit, moving on")
                     mark_cad_posted(cad_number, "no merit ")
                     continue
                 new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
