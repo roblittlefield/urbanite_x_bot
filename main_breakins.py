@@ -88,7 +88,7 @@ def get_tweets():
         if call["call_type_final"] == str(851) or call["call_type_final"] == str(852):  # 851 stolen car, 852 car break-in
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
-                print(f'Break-in/GTA Posted Already CAD #{cad_number}')
+                # print(f'Break-in/GTA Posted Already CAD #{cad_number}')
                 already_posted += 1
                 continue
 

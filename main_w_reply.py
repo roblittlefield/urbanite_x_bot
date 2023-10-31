@@ -124,7 +124,7 @@ def get_tweets(refreshed_token):
         if call["call_type_final"] in included_call_types:
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
-                # print(f"{cad_number} already in posted csv")
+                print(f"{cad_number} already in posted csv")
                 already_posted += 1
                 continue
             print(f"{cad_number} not in posted csv")
@@ -180,7 +180,8 @@ def get_tweets(refreshed_token):
                 response_time_str = ""
 
             tweet_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_rt_existing_data)
-            if tweet_id is not None:
+
+            if tweet_id:
                 print("CAD tweeted, looking for RT / disp")
                 if response_time_str != "":
                     tweet_wo_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
@@ -201,17 +202,22 @@ def get_tweets(refreshed_token):
                             tweets_awaiting_disposition_existing_data += tweets_awaiting_disposition_new_data
                             tweets_awaiting_disposition_blob.upload_from_string(tweets_awaiting_disposition_existing_data)
                             print(f"Tweet without disposition, CAD {cad_number} posted with ID: {tweet_id}")
+                        elif response.status_code == 403:
+                            print(f"{response.status_code} error, skipping this reply")
+                            mark_cad_posted(cad_number, "403 error")
                         else:
                             print(f"REPLY tweet w/o disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
                             continue
                     else:
                         if tweet_wo_disp_id:
                             reply_tweet = f"Outcome: {disposition[2:]}"
+                            tweet_reply_to = tweet_wo_disp_id
                             print("Already had RT, replying with disposition")
                         else:
                             reply_tweet = f"{response_time_str[2:]}{disposition}"
                             print("Replying with RT & disposition")
-                        response = post_reply(tweet_wo_disp_id, reply_tweet, refreshed_token)
+                            tweet_reply_to = tweet_id
+                        response = post_reply(tweet_reply_to, reply_tweet, refreshed_token)
                         print("Tweeted reply")
                         if response is None:
                             continue
@@ -224,14 +230,15 @@ def get_tweets(refreshed_token):
                             print(f"REPLY tweet with disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
                             continue
                 else:
-                    print("No RT found, moving on.")
+                    print("No RT found yet, moving on.")
             else:
                 if disposition == ", no merit":
                     print("Disposition = no merit, moving on")
                     mark_cad_posted(cad_number, "no merit ")
                     continue
-                new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
-                call_tweets.append(new_tweet)
+                else:
+                    new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
+                    call_tweets.append(new_tweet)
 
     return call_tweets
 
@@ -264,6 +271,8 @@ def post_tweet(payload, token):
 
 def post_reply(tweet_id, tweet, token):
     if tweet_id is None:
+        print(f"Tweet id {tweet_id}")
+        print(f"Tweet {tweet}")
         cad_number = tweet[-9:]
         mark_cad_posted(cad_number, "og deleted, skip reply")
     else:
