@@ -226,6 +226,9 @@ def get_tweets(refreshed_token):
                             new_reply_disp_id = json.loads(response.text)["data"]["id"]
                             mark_cad_posted(cad_number, new_reply_disp_id)
                             print(f"Replied to CAD {cad_number}, posted with ID: {new_reply_disp_id}")
+                        elif response.status_code == 403:
+                            print(f"{response.status_code} error, skipping this reply")
+                            mark_cad_posted(cad_number, "403 error")
                         else:
                             print(f"REPLY tweet with disposition posting failed. RESPONSE STATUS CODE {response.status_code}")
                             continue
