@@ -216,6 +216,8 @@ def get_tweets(refreshed_token):
                             print("Replying with RT & disposition")
                         response = post_reply(tweet_wo_disp_id, reply_tweet, refreshed_token)
                         print("Tweeted reply")
+                        if response is None:
+                            continue
                         if response.status_code == 201:
                             new_reply_disp_id = json.loads(response.text)["data"]["id"]
                             mark_cad_posted(cad_number, new_reply_disp_id)
@@ -262,32 +264,34 @@ def post_tweet(payload, token):
 
 def post_reply(tweet_id, tweet, token):
     if tweet_id is None:
-        raise ValueError("tweet_id is None, cannot post reply")
-    print('Post Reply fn called')
-    payload = {
-        "text": tweet,
-        "reply": {
-            "in_reply_to_tweet_id": tweet_id
+        cad_number = tweet[-9:]
+        mark_cad_posted(cad_number, "og deleted, skip reply")
+    else:
+        print('Post Reply fn called')
+        payload = {
+            "text": tweet,
+            "reply": {
+                "in_reply_to_tweet_id": tweet_id
+            }
         }
-    }
-    url = "https://api.twitter.com/2/tweets"
+        url = "https://api.twitter.com/2/tweets"
 
-    headers = {
-        "Authorization": "Bearer {}".format(token["access_token"]),
-        "Content-Type": "application/json",
-    }
+        headers = {
+            "Authorization": "Bearer {}".format(token["access_token"]),
+            "Content-Type": "application/json",
+        }
 
-    print("Sending POST request to:", url)
-    print("Request Headers:", headers)
-    print("Request Body:", json.dumps(payload))
+        print("Sending POST request to:", url)
+        print("Request Headers:", headers)
+        print("Request Body:", json.dumps(payload))
 
-    response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers)
 
-    print("Response Status Code:", response.status_code)
-    print("Response Headers:", response.headers)
-    print("Response Content:", response.text)
+        print("Response Status Code:", response.status_code)
+        print("Response Headers:", response.headers)
+        print("Response Content:", response.text)
 
-    return response
+        return response
 
 
 client = secretmanager.SecretManagerServiceClient()
@@ -355,7 +359,9 @@ def run_bot(cloud_event):
         response = post_tweet(payload, refreshed_token)
         cad_number = payload["text"][-9:]
 
-        if response.status_code == 201:
+        if response is None:
+            continue
+        elif response.status_code == 201:
             tweet_id = json.loads(response.text)["data"]["id"]
             contains_response_time = "SFPD response time" in tweet
             if not contains_response_time:
