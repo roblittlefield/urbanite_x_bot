@@ -250,5 +250,5 @@ def run_bot(cloud_event):
         else:
             print(F"Tweet posting failed. RESPONSE STATUS CODE {response.status_code}")
 
-    print(f"Retrieved car break-in/stolen car calls: {call_count}, already tweeted: {already_posted}, new tweets: {len(tweets)}.")
+    print(f"{call_count} calls, Bips/GTA posted: {already_posted}, new tweets: {len(tweets)}.")
     return 'OK'
