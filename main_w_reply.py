@@ -103,7 +103,7 @@ def find_tweet_id_by_cad_number(cad_number_try, blob):
             parts = line.strip().split('-')
             if len(parts) == 2 and parts[0].strip() == cad_number_try:
                 tweet_id = parts[1].strip()
-                print(f"trying to reply to {tweet_id}")
+                print(f"Found previous tweet: {tweet_id}")
                 return tweet_id
         return None
     except FileNotFoundError:
@@ -201,7 +201,7 @@ def get_tweets(refreshed_token):
                             tweets_awaiting_disposition_new_data = f"{cad_number}-{new_reply_rt_id}\n"
                             tweets_awaiting_disposition_existing_data += tweets_awaiting_disposition_new_data
                             tweets_awaiting_disposition_blob.upload_from_string(tweets_awaiting_disposition_existing_data)
-                            print(f"Tweet without disposition, CAD {cad_number} posted with ID: {tweet_id}")
+                            print(f"Reply Tweet without disposition, CAD {cad_number} posted with ID: {tweet_id}")
                         elif response.status_code == 403:
                             print(f"{response.status_code} error, skipping this reply")
                             mark_cad_posted(cad_number, "403 error")
@@ -260,7 +260,7 @@ def make_token():
 
 
 def post_tweet(payload, token):
-    print("Trying to Tweet!")
+    print(f"Trying to Tweet! {payload}")
     return requests.request(
         "POST",
         "https://api.twitter.com/2/tweets",
@@ -372,6 +372,7 @@ def run_bot(cloud_event):
         cad_number = payload["text"][-9:]
 
         if response is None:
+            print("No response to Tweet post.")
             continue
         elif response.status_code == 201:
             tweet_id = json.loads(response.text)["data"]["id"]
