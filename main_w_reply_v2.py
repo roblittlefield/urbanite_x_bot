@@ -136,7 +136,10 @@ def make_token():
     return OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
 
 
-def post_tweet(payload, token, tweet_id=None):
+def post_tweet(new_tweet, token, tweet_id=None):
+    payload = {
+        "text": new_tweet
+    }
     if tweet_id is not None:
         payload["reply"] = {
             "in_reply_to_tweet_id": tweet_id
