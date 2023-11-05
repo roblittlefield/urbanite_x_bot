@@ -194,10 +194,11 @@ def run_bot(cloud_event):
             except KeyError:
                 disposition = ""
 
-            try:
-                call_type_desc = call['call_type_final_desc'].title()
-            except KeyError:
-                call_type_desc = call['call_type_original_desc'].title()
+            if call["call_type_final"] == "852":
+                call_type_desc = "Car break-in / strip"
+            elif call["call_type_final"] == "851":
+                call_type_desc = "Stolen vehicle"
+
             # print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
