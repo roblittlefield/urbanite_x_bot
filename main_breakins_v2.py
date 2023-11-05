@@ -245,5 +245,5 @@ def run_bot(cloud_event):
         posted_tweets_new_data = json.dumps(posted_tweets_existing_data)
         posted_tweets_blob.upload_from_string(posted_tweets_new_data)
 
-    print(f"Bips: {call_count} calls, {already_posted} posted, {new_tweets_count} new")
-    return 'OK'
+    print(f"Bips: {new_tweets_count} + {already_posted} / {call_count} calls")
+    return "Ok"

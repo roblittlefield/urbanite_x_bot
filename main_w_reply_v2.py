@@ -357,5 +357,5 @@ def run_bot(cloud_event):
         tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data)
         tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_new_data)
 
-    print(f"Severe: {call_count} calls, {already_posted} posted, {new_tweets_count} new, {new_rt_replies_count + new_disp_replies_count} replies")
+    print(f"Sevr: {new_tweets_count}, {new_disp_replies_count}, {new_rt_replies_count} + {already_posted} / {call_count} calls")
     return "Ok"
