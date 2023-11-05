@@ -124,7 +124,7 @@ def find_tweet_id_by_cad_number(cad_number_try, blob):
         data_dict = json.loads(blob)
         if cad_number_try in data_dict:
             tweet_id = data_dict[cad_number_try]
-            print(f"Found previous tweet: {tweet_id}")
+            # print(f"Found previous tweet: {tweet_id}")
             return tweet_id
         return None
     except json.JSONDecodeError:
@@ -144,14 +144,14 @@ def post_tweet(new_tweet, token, tweet_id=None):
         payload["reply"] = {
             "in_reply_to_tweet_id": tweet_id
         }
-    print("Sending Tweet with payload:", payload)
+    # print("Sending Tweet with payload:", payload)
     url = "https://api.twitter.com/2/tweets"
     headers = {
         "Authorization": "Bearer {}".format(token["access_token"]),
         "Content-Type": "application/json",
     }
     response = requests.post(url, json=payload, headers=headers)
-    print("Response Status Code:", response.status_code)
+    # print("Response Status Code:", response.status_code)
     return response
 
 
@@ -218,13 +218,11 @@ def run_bot(cloud_event):
                 try:
                     call["onscene_datetime"]
                 except KeyError:
-                    print("Awaiting RT, none yet")
                     continue
             if cad_number in tweets_awaiting_disposition_existing_data:
                 try:
                     call["disposition"]
                 except KeyError:
-                    print("Awaiting disposition, none yet")
                     continue
 
             # Data Processing
@@ -242,7 +240,7 @@ def run_bot(cloud_event):
             time_difference = time_now - received_date
             total_seconds = time_difference.total_seconds()
             hours_ago = round(total_seconds / 3600, 1)
-            if hours_ago > 12:
+            if hours_ago > 24:
                 continue
             minutes_ago = round(total_seconds / 60, 1)
             hour = received_date.strftime('%I').lstrip('0')
@@ -259,7 +257,7 @@ def run_bot(cloud_event):
                 call_type_desc = call['call_type_final_desc'].title()
             except KeyError:
                 call_type_desc = call['call_type_original_desc'].title()
-            print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
+            # print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
                 neighborhood = get_neighborhood(call['analysis_neighborhood'])
@@ -340,7 +338,7 @@ def run_bot(cloud_event):
                 tweets_awaiting_rt_existing_data[cad_number] = tweet_id
                 new_rt_replies_count += 1
 
-            print(f"Added call {cad_number} with Tweet ID {tweet_id} & type {tweet_type}")
+            # print(f"Added call {cad_number} with Tweet ID {tweet_id} & type {tweet_type}")
 
     # New Tweets
     if new_tweets_count > 0:

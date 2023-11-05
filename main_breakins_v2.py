@@ -101,14 +101,14 @@ def post_tweet(new_tweet, token):
     payload = {
         "text": new_tweet
     }
-    print("Sending Tweet with payload:", payload)
+    # print("Sending Tweet with payload:", payload)
     url = "https://api.twitter.com/2/tweets"
     headers = {
         "Authorization": "Bearer {}".format(token["access_token"]),
         "Content-Type": "application/json",
     }
     response = requests.post(url, json=payload, headers=headers)
-    print("Response Status Code:", response.status_code)
+    # print("Response Status Code:", response.status_code)
     return response
 
 
@@ -198,7 +198,7 @@ def run_bot(cloud_event):
                 call_type_desc = call['call_type_final_desc'].title()
             except KeyError:
                 call_type_desc = call['call_type_original_desc'].title()
-            print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
+            # print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
 
             try:
                 neighborhood = get_neighborhood(call['analysis_neighborhood'])
