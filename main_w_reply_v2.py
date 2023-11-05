@@ -116,12 +116,11 @@ def get_neighborhood(neighborhood_raw):
     return neighborhood_formatted.get(neighborhood_raw)
 
 
-def find_tweet_id_by_cad_number(cad_number_try, blob):
+def find_tweet_id_by_cad_number(cad_number_try, data_dict):
     try:
-        if not blob:
-            print("No data blob passed to find tweet by CAD, fix")
+        if not data_dict:
+            print("No data dict from blob passed to find tweet by CAD, fix")
             return None
-        data_dict = json.loads(blob)
         if cad_number_try in data_dict:
             tweet_id = data_dict[cad_number_try]
             # print(f"Found previous tweet: {tweet_id}")
