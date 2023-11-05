@@ -118,16 +118,10 @@ def get_neighborhood(neighborhood_raw):
 
 def find_tweet_id_by_cad_number(cad_number_try, data_dict):
     try:
-        if not data_dict:
-            print("No data dict from blob passed to find tweet by CAD, fix")
-            return None
-        if cad_number_try in data_dict:
-            tweet_id = data_dict[cad_number_try]
-            # print(f"Found previous tweet: {tweet_id}")
-            return tweet_id
-        return None
-    except json.JSONDecodeError:
-        print(f"Error decoding JSON data in the blob for {cad_number_try}.")
+        tweet_id = data_dict[cad_number_try]
+        print(f"Found previous tweet: {tweet_id}")
+        return tweet_id
+    except KeyError:
         return None
 
 
