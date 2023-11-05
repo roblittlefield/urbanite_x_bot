@@ -150,12 +150,8 @@ def post_tweet(new_tweet, token, tweet_id=None):
         "Authorization": "Bearer {}".format(token["access_token"]),
         "Content-Type": "application/json",
     }
-    print("Request Headers:", headers)
-    print("Request Body:", json.dumps(payload))
     response = requests.post(url, json=payload, headers=headers)
     print("Response Status Code:", response.status_code)
-    print("Response Headers:", response.headers)
-    print("Response Content:", response.text)
     return response
 
 
@@ -215,7 +211,7 @@ def run_bot(cloud_event):
             # Redundancy filters
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
-                print(f"{cad_number} already in posted data")
+                # print(f"{cad_number} already in posted data")
                 already_posted += 1
                 continue
             if cad_number in tweets_awaiting_rt_existing_data:
@@ -236,8 +232,10 @@ def run_bot(cloud_event):
             on_view_text = ""
             if on_view == "Y":
                 on_view_text = ", officer observed"
-
-            received_date_string = call["received_datetime"]
+            try:
+                received_date_string = call["received_datetime"]
+            except KeyError:
+                continue
             received_date = datetime.strptime(received_date_string, '%Y-%m-%dT%H:%M:%S.%f')
 
             time_now = datetime.now() - timedelta(hours=7)
@@ -359,5 +357,5 @@ def run_bot(cloud_event):
         tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data)
         tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_new_data)
 
-    print(f"{call_count} calls, Severe posted: {already_posted}, new tweets: {new_tweets_count}, disp: {new_disp_replies_count}, rt: {new_rt_replies_count}")
+    print(f"Severe: {call_count} calls, {already_posted} posted, {new_tweets_count} new, {new_rt_replies_count + new_disp_replies_count} replies")
     return "Ok"
