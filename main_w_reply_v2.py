@@ -119,7 +119,7 @@ def get_neighborhood(neighborhood_raw):
 def find_tweet_id_by_cad_number(cad_number_try, data_dict):
     try:
         tweet_id = data_dict[cad_number_try]
-        print(f"Found previous tweet: {tweet_id}")
+        # print(f"Found previous tweet: {tweet_id}")
         return tweet_id
     except KeyError:
         return None
@@ -144,7 +144,7 @@ def post_tweet(new_tweet, token, tweet_id=None):
         "Content-Type": "application/json",
     }
     response = requests.post(url, json=payload, headers=headers)
-    # print("Response Status Code:", response.status_code)
+    print("Response Status Code:", response.status_code)
     return response
 
 
@@ -304,6 +304,8 @@ def run_bot(cloud_event):
                     tweet_type = 3
 
             if not tweet_type == 0:
+                if tweet_replying_to_id == 403:
+                    continue
                 response = post_tweet(new_tweet, refreshed_token, tweet_replying_to_id)
                 if response is None:
                     continue
