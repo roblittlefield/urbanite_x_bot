@@ -117,6 +117,8 @@ def run_bot(cloud_event):
     global posted_tweets_existing_data
     already_posted = 0
     new_tweets_count = 0
+    dup_tweets_count = 0
+    nm_count = 0
 
     twitter = make_token()
     try:
@@ -227,22 +229,23 @@ def run_bot(cloud_event):
                     continue
                 elif response.status_code == 201:
                     tweet_id = json.loads(response.text)["data"]["id"]
+                    new_tweets_count += 1
                 elif response.status_code == 403:
                     tweet_id = 403
+                    dup_tweets_count += 1
                 elif response.status_code == 429:
                     break
                 else:
                     break
             else:
-                new_tweet = ""
                 tweet_id = 100
+                nm_count += 1
 
             # Add to GCF Bucket Blob
             posted_tweets_existing_data[cad_number] = tweet_id
-            new_tweets_count += 1
 
     # New Tweets
-    if new_tweets_count > 0:
+    if (new_tweets_count + dup_tweets_count + nm_count) > 0:
         posted_tweets_new_data = json.dumps(posted_tweets_existing_data)
         posted_tweets_blob.upload_from_string(posted_tweets_new_data)
 
