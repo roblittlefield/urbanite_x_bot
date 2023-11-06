@@ -272,7 +272,8 @@ def run_bot(cloud_event):
 
             # Creating Tweet or reply
             tweet_await_rt_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_rt_existing_data)
-            if not tweet_await_rt_id:
+            tweet_await_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
+            if not tweet_await_rt_id and not tweet_await_disp_id:
                 if not disposition == ", no merit":
                     new_tweet = f"{neighborhood.upper()}: {call_type_desc} near {text_proper_case(call['intersection_name'])} {received_date_formatted}, Priority {call['priority_final']}{on_view_text}{response_time_str}{disposition} urbanitesf.netlify.app/?cad={call['cad_number'] }"
                     tweet_replying_to_id = None
@@ -288,7 +289,6 @@ def run_bot(cloud_event):
                     tweet_replying_to_id = None
                     tweet_type = 0
             else:
-                tweet_await_disp_id = find_tweet_id_by_cad_number(cad_number, tweets_awaiting_disposition_existing_data)
                 if not tweet_await_disp_id:
                     if not disposition == "":
                         new_tweet = f"{response_time_str[2:]}{disposition}"
@@ -323,7 +323,8 @@ def run_bot(cloud_event):
             # Add to GCF Bucket Blob
             if tweet_type == 3 or tweet_type == 0:
                 posted_tweets_existing_data[cad_number] = tweet_id
-                new_tweets_count += 1
+                if tweet_type == 3:
+                    new_tweets_count += 1
 
             elif tweet_type == 2:
                 tweets_awaiting_disposition_existing_data[cad_number] = tweet_id
