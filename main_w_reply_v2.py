@@ -198,7 +198,7 @@ def run_bot(cloud_event):
         tweet_type = None
 
         # Call type filter
-        included_call_types = ["217", "219", "212", "245", "528", "213", "152"]  # shooting, stabbing, sa robbery, agg assault, fire, purse snatched, drunk driver REMOVED: "603" prowler, "646" stalking
+        included_call_types = ["217", "219", "212", "245", "528", "213", "152", "221", "222", "646", "603"]  # shooting, stabbing, sa robbery, agg assault, fire, purse snatched, drunk driver, person w gun, person w knife, stalking,  prowler
         if call["call_type_final"] in included_call_types:
 
             # Redundancy filters
