@@ -198,7 +198,7 @@ def run_bot(cloud_event):
         tweet_type = None
 
         # Call type filter
-        included_call_types = ["217", "219", "212", "245", "528", "213", "152"]  # shooting, stabbing, sa robbery, agg assault, fire, purse snatched, drunk driver REMOVED: "221" person w gun, "222" person w knife, "646" stalking, "603" prowler
+        included_call_types = ["217", "219", "212", "222", "221", "213", "152"]  # shooting, stabbing, sa robbery,  "222" person w knife, "221" person w gun, purse snatched, drunk driver REMOVED: "528" fire, "646" stalking, "603" prowler, "245" agg assault,
         if call["call_type_final"] in included_call_types:
 
             # Redundancy filters
@@ -297,9 +297,13 @@ def run_bot(cloud_event):
                         tweet_replying_to_id = tweet_await_rt_id
                         tweet_type = 2
                 else:
-                    new_tweet = f"Outcome: {disposition[2:]}"
-                    tweet_replying_to_id = tweet_await_disp_id
-                    tweet_type = 3
+                    if disposition[2:] == "related to another call":
+                        new_tweet = None
+                        tweet_type = 0
+                    else:
+                        new_tweet = f"Outcome: {disposition[2:]}"
+                        tweet_replying_to_id = tweet_await_disp_id
+                        tweet_type = 3
 
             if not tweet_type == 0:
                 if tweet_replying_to_id == 403:
