@@ -242,11 +242,15 @@ def run_bot(cloud_event):
             except KeyError:
                 disposition = ""
 
-            try:
-                call_type_desc = call['call_type_final_desc'].title()
-            except KeyError:
-                call_type_desc = call['call_type_original_desc'].title()
-            # print(f"{call_type_desc}: {minutes_ago} minutes ago. CAD {cad_number}")
+            if call['call_type_final_desc'] == "PERSON W/KNIFE":
+                call_type_desc = "Person with knife"
+            elif call['call_type_final_desc'] == "PERSON W/GUN":
+                call_type_desc = "Person with gun"
+            else:
+                try:
+                    call_type_desc = call['call_type_final_desc'].capitalize()
+                except KeyError:
+                    call_type_desc = call['call_type_original_desc'].capitalize()
 
             try:
                 neighborhood = get_neighborhood(call['analysis_neighborhood'])
