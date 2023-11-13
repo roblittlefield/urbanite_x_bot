@@ -28,6 +28,7 @@ bucket = storage_client.bucket("urbanite-x-bot-data")
 
 posted_tweets_file = "posted_tweets.json"
 posted_tweets_blob = bucket.blob(posted_tweets_file)
+posted_tweets_blob.cache_control = "no-store, max-age=0"
 posted_tweets_existing_data = posted_tweets_blob.download_as_text()
 try:
     posted_tweets_existing_data = json.loads(posted_tweets_existing_data)
@@ -36,6 +37,7 @@ except json.JSONDecodeError as e:
 
 tweets_awaiting_rt_file = "tweets_awaiting_rt.json"
 tweets_awaiting_rt_blob = bucket.blob(tweets_awaiting_rt_file)
+tweets_awaiting_rt_blob.cache_control = "no-store, max-age=0"
 tweets_awaiting_rt_existing_data = tweets_awaiting_rt_blob.download_as_text()
 try:
     tweets_awaiting_rt_existing_data = json.loads(tweets_awaiting_rt_existing_data)
@@ -44,6 +46,7 @@ except json.JSONDecodeError as e:
 
 tweets_awaiting_disposition_file = "tweets_awaiting_disposition.json"
 tweets_awaiting_disposition_blob = bucket.blob(tweets_awaiting_disposition_file)
+tweets_awaiting_disposition_blob.cache_control = "no-store, max-age=0"
 tweets_awaiting_disposition_existing_data = tweets_awaiting_disposition_blob.download_as_text()
 try:
     tweets_awaiting_disposition_existing_data = json.loads(tweets_awaiting_disposition_existing_data)
@@ -119,7 +122,7 @@ def get_neighborhood(neighborhood_raw):
 def find_tweet_id_by_cad_number(cad_number_try, data_dict):
     try:
         tweet_id = data_dict[cad_number_try]
-        # print(f"Found previous tweet: {tweet_id}")
+        print(f"Found previous tweet: {tweet_id}")
         return tweet_id
     except KeyError:
         return None
@@ -339,7 +342,7 @@ def run_bot(cloud_event):
                 tweets_awaiting_rt_existing_data[cad_number] = tweet_id
                 new_rt_replies_count += 1
 
-            # print(f"Added call {cad_number} with Tweet ID {tweet_id} & type {tweet_type}")
+            print(f"Added call {cad_number} with Tweet ID {tweet_id} & type {tweet_type}")
 
     # New Tweets
     if new_tweets_count > 0:
