@@ -133,22 +133,27 @@ def make_token():
 
 
 def post_tweet(new_tweet, token, tweet_id=None):
-    payload = {
-        "text": new_tweet
-    }
-    if tweet_id is not None:
-        payload["reply"] = {
-            "in_reply_to_tweet_id": tweet_id
+    try:
+        payload = {"text": new_tweet}
+
+        if tweet_id is not None:
+            payload["reply"] = {"in_reply_to_tweet_id": tweet_id}
+
+        print("Sending Tweet with payload:", payload)
+
+        url = "https://api.twitter.com/2/tweets"
+        headers = {
+            "Authorization": "Bearer {}".format(token["access_token"]),
+            "Content-Type": "application/json",
         }
-    # print("Sending Tweet with payload:", payload)
-    url = "https://api.twitter.com/2/tweets"
-    headers = {
-        "Authorization": "Bearer {}".format(token["access_token"]),
-        "Content-Type": "application/json",
-    }
-    response = requests.post(url, json=payload, headers=headers)
-    print("Response Status Code:", response.status_code)
-    return response
+
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print("Response Status Code:", response.status_code)
+        return response
+    except requests.exceptions.RequestException as e:
+        print(f"Error making the request: {e}")
+        return None
 
 
 @functions_framework.cloud_event
@@ -268,10 +273,11 @@ def run_bot(cloud_event):
                 response_time_diff = onscene_date - received_date
                 response_time = round(response_time_diff.total_seconds() / 60)
                 response_time_str = ""
-                if not call["onview_flag"] == "Y":
-                    response_time_str = f", SFPD response time: {response_time}m"
-                elif call["onview_flag"] == "Y":
+                if call["onview_flag"] == "Y":
                     response_time_str = f", officer observed"
+                else:
+                    response_time_str = f", SFPD response time: {response_time}m"
+
             except KeyError:
                 response_time_str = ""
 
@@ -317,6 +323,7 @@ def run_bot(cloud_event):
                     continue
                 response = post_tweet(new_tweet, refreshed_token, tweet_replying_to_id)
                 if response is None:
+                    print("Tweet Response = none")
                     continue
                 elif response.status_code == 201:
                     tweet_id = json.loads(response.text)["data"]["id"]
@@ -330,15 +337,19 @@ def run_bot(cloud_event):
                 tweet_id = 100
 
             # Add to GCF Bucket Blob
+            print(f"Debug: tweet_type={tweet_type}, cad_number={cad_number}, tweet_id={tweet_id}")
             if tweet_type == 3 or tweet_type == 0:
+                print("Processing type 3 or 0")
                 posted_tweets_existing_data[cad_number] = tweet_id
                 new_tweets_count += 1
 
             elif tweet_type == 2:
+                print("Processing type 2")
                 tweets_awaiting_disposition_existing_data[cad_number] = tweet_id
                 new_disp_replies_count += 1
 
             elif tweet_type == 1:
+                print("Processing type 1")
                 tweets_awaiting_rt_existing_data[cad_number] = tweet_id
                 new_rt_replies_count += 1
 
