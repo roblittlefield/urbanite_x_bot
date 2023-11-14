@@ -330,7 +330,7 @@ def run_bot(cloud_event):
                 elif response.status_code == 403:
                     tweet_id = 403
                 elif response.status_code == 429:
-                    break
+                    return
                 else:
                     break
             else:
