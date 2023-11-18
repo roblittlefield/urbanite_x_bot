@@ -356,7 +356,9 @@ def run_bot(cloud_event):
     # New Tweets
     if new_tweets_count > 0:
         print(posted_tweets_existing_data)
-        posted_tweets_new_data = json.dumps(posted_tweets_existing_data)
+        keys_to_keep = list(posted_tweets_existing_data.keys())[-90:]
+        posted_tweets_existing_data_filtered = {key: posted_tweets_existing_data[key] for key in keys_to_keep}
+        posted_tweets_new_data = json.dumps(posted_tweets_existing_data_filtered)
         try:
             posted_tweets_blob.upload_from_string(posted_tweets_new_data)
         except Exception as e:
@@ -365,7 +367,9 @@ def run_bot(cloud_event):
     # New Disp replies
     if new_disp_replies_count > 0:
         print(tweets_awaiting_disposition_existing_data)
-        tweets_awaiting_disposition_new_data = json.dumps(tweets_awaiting_disposition_existing_data)
+        keys_to_keep = list(tweets_awaiting_disposition_existing_data.keys())[-30:]
+        tweets_awaiting_disposition_existing_data_filtered = {key: tweets_awaiting_disposition_existing_data[key] for key in keys_to_keep}
+        tweets_awaiting_disposition_new_data = json.dumps(tweets_awaiting_disposition_existing_data_filtered)
         try:
             tweets_awaiting_disposition_blob.upload_from_string(tweets_awaiting_disposition_new_data)
         except Exception as e:
@@ -374,7 +378,9 @@ def run_bot(cloud_event):
     # New RT replies
     if new_rt_replies_count > 0:
         print(tweets_awaiting_rt_existing_data)
-        tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data)
+        keys_to_keep = list(tweets_awaiting_rt_existing_data.keys())[-40:]
+        tweets_awaiting_rt_existing_data_filtered = {key: tweets_awaiting_rt_existing_data[key] for key in keys_to_keep}
+        tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data_filtered)
         try:
             tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_new_data)
             print("Uploaded to tweets_awaiting_rt_blob.")
