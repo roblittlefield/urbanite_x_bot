@@ -19,9 +19,9 @@ token_url = "https://api.twitter.com/2/oauth2/token"
 auth_url = "https://twitter.com/i/oauth2/authorize"
 scopes = ["tweet.read", "users.read", "tweet.write", "offline.access"]
 
-posted_tweets_existing_data = None
-tweets_awaiting_rt_existing_data = None
-tweets_awaiting_disposition_existing_data = None
+posted_tweets_existing_data = {}
+tweets_awaiting_rt_existing_data = {}
+tweets_awaiting_disposition_existing_data = {}
 
 storage_client = storage.Client()
 bucket = storage_client.bucket("urbanite-x-bot-data")
@@ -122,9 +122,12 @@ def get_neighborhood(neighborhood_raw):
 def find_tweet_id_by_cad_number(cad_number_try, data_dict):
     try:
         tweet_id = data_dict[cad_number_try]
-        print(f"Found previous tweet: {tweet_id}")
+        # print(f"Found previous tweet: {tweet_id}")
         return tweet_id
     except KeyError:
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
         return None
 
 
@@ -212,7 +215,6 @@ def run_bot(cloud_event):
             # Redundancy filters
             cad_number = call["cad_number"]
             if cad_number in posted_tweets_existing_data:
-                # print(f"{cad_number} already in posted data")
                 already_posted += 1
                 continue
             if cad_number in tweets_awaiting_rt_existing_data:
@@ -239,7 +241,7 @@ def run_bot(cloud_event):
             hours_ago = round(total_seconds / 3600, 1)
             if hours_ago > 24:
                 continue
-            minutes_ago = round(total_seconds / 60, 1)
+            # minutes_ago = round(total_seconds / 60, 1)
             hour = received_date.strftime('%I').lstrip('0')
 
             received_date_min = received_date.strftime(f':%M %p')
@@ -337,54 +339,47 @@ def run_bot(cloud_event):
                 tweet_id = 100
 
             # Add to GCF Bucket Blob
-            print(f"Debug: tweet_type={tweet_type}, cad_number={cad_number}, tweet_id={tweet_id}")
             if tweet_type == 3 or tweet_type == 0:
-                print("Processing type 3 or 0")
                 posted_tweets_existing_data[cad_number] = tweet_id
-                print(f"Updated for cad_number={cad_number}, tweet_id={tweet_id}")
                 new_tweets_count += 1
 
             elif tweet_type == 2:
-                print("Processing type 2")
                 tweets_awaiting_disposition_existing_data[cad_number] = tweet_id
-                print(f"Updated for cad_number={cad_number}, tweet_id={tweet_id}")
                 new_disp_replies_count += 1
 
             elif tweet_type == 1:
-                print("Processing type 1")
                 tweets_awaiting_rt_existing_data[cad_number] = tweet_id
-                print(f"Updated for cad_number={cad_number}, tweet_id={tweet_id}")
                 new_rt_replies_count += 1
 
             print(f"Added call {cad_number} with Tweet ID {tweet_id} & type {tweet_type}")
 
     # New Tweets
     if new_tweets_count > 0:
+        print(posted_tweets_existing_data)
         posted_tweets_new_data = json.dumps(posted_tweets_existing_data)
         try:
             posted_tweets_blob.upload_from_string(posted_tweets_new_data)
         except Exception as e:
             print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
-        print("Ran: add to tweets fully posted blob.")
 
     # New Disp replies
     if new_disp_replies_count > 0:
+        print(tweets_awaiting_disposition_existing_data)
         tweets_awaiting_disposition_new_data = json.dumps(tweets_awaiting_disposition_existing_data)
         try:
             tweets_awaiting_disposition_blob.upload_from_string(tweets_awaiting_disposition_new_data)
         except Exception as e:
             print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
-        print("Ran: add to tweets awaiting disp blob.")
 
     # New RT replies
     if new_rt_replies_count > 0:
+        print(tweets_awaiting_rt_existing_data)
         tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data)
         try:
-            tweets_awaiting_rt_blob.upload_from_string(json.dumps(tweets_awaiting_rt_new_data))
+            tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_new_data)
             print("Uploaded to tweets_awaiting_rt_blob.")
         except Exception as e:
             print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
-        print("Ran: add to tweets awaiting RT blob.")
 
     print(f"Sevr: {new_tweets_count}, {new_disp_replies_count}, {new_rt_replies_count} + {already_posted} / {call_count} calls")
     return "Ok"
