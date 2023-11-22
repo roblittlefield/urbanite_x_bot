@@ -122,9 +122,11 @@ def get_neighborhood(neighborhood_raw):
 def find_tweet_id_by_cad_number(cad_number_try, data_dict):
     try:
         tweet_id = data_dict[cad_number_try]
-        # print(f"Found previous tweet: {tweet_id}")
+        print(f"Found previous tweet: {tweet_id} for {cad_number_try}")
         return tweet_id
     except KeyError:
+        print(f"No previous tweet found for {cad_number_try}")
+        print(f"Looked for previous tweet in data_dict: {data_dict}")
         return None
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
@@ -156,7 +158,7 @@ def post_tweet(new_tweet, token, tweet_id=None):
         return response
     except requests.exceptions.RequestException as e:
         print(f"Error making the request: {e}")
-        return None
+        return response
 
 
 @functions_framework.cloud_event
@@ -209,7 +211,7 @@ def run_bot(cloud_event):
         tweet_type = None
 
         # Call type filter
-        included_call_types = ["217", "219", "211", "212", "222", "221", "213", "152", "211S"]  # shooting, stabbing, robbery, sa robbery,  "222" person w knife, "221" person w gun, purse snatched, drunk driver, silent hold-up alarm REMOVED: "528" fire, "646" stalking, "603" prowler, "245" agg assault,
+        included_call_types = ["217", "219", "212", "222", "221"]  # shooting, stabbing, sa robbery,  "222" person w knife, "221" person w gun, REMOVED: "216" shots fired,   "213" purse snatched, "211S" silent hold-up alarm, "152" drunk driver "211" robbery "528" fire, "646" stalking, "603" prowler, "245" agg assault,
         if call["call_type_final"] in included_call_types:
 
             # Redundancy filters
@@ -355,37 +357,53 @@ def run_bot(cloud_event):
 
     # New Tweets
     if new_tweets_count > 0:
-        print(posted_tweets_existing_data)
-        keys_to_keep = list(posted_tweets_existing_data.keys())[-min(80, len(posted_tweets_existing_data)):]
-        posted_tweets_existing_data_filtered = {key: posted_tweets_existing_data[key] for key in keys_to_keep}
-        posted_tweets_new_data = json.dumps(posted_tweets_existing_data_filtered)
+        # print(f"Experimental: posted tweets based on what is still in data {posted_tweets_new}")
+        # keys_to_keep = list(posted_tweets_existing_data.keys())[-min(80, len(posted_tweets_existing_data)):]
+        # posted_tweets_existing_data_filtered = {key: posted_tweets_existing_data[key] for key in keys_to_keep}
+        # print(f"Posted tweets existing data filtered {posted_tweets_existing_data_filtered}")
+        # print(f"Posted tweets existing data {posted_tweets_existing_data}")
+        # posted_tweets_new_data = json.dumps(posted_tweets_existing_data_filtered)
+        posted_tweets_new_data = json.dumps(posted_tweets_existing_data)
         try:
             posted_tweets_blob.upload_from_string(posted_tweets_new_data)
         except Exception as e:
-            print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
+            print(f"Error uploading to posted tweets blob: {e}")
 
     # New Disp replies
     if new_disp_replies_count > 0:
-        print(tweets_awaiting_disposition_existing_data)
-        keys_to_keep = list(tweets_awaiting_disposition_existing_data.keys())[-min(30, len(tweets_awaiting_disposition_existing_data)):]
-        tweets_awaiting_disposition_existing_data_filtered = {key: tweets_awaiting_disposition_existing_data[key] for key in keys_to_keep}
-        tweets_awaiting_disposition_new_data = json.dumps(tweets_awaiting_disposition_existing_data_filtered)
+        # print(tweets_awaiting_disposition_existing_data)
+        # keys_to_keep = list(tweets_awaiting_disposition_existing_data.keys())[-min(30, len(tweets_awaiting_disposition_existing_data)):]
+        # tweets_awaiting_disposition_existing_data_filtered = {key: tweets_awaiting_disposition_existing_data[key] for key in keys_to_keep}
+        # print(tweets_awaiting_disposition_existing_data_filtered)
+        tweets_awaiting_disposition_new_data = json.dumps(tweets_awaiting_disposition_existing_data)
         try:
             tweets_awaiting_disposition_blob.upload_from_string(tweets_awaiting_disposition_new_data)
         except Exception as e:
-            print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
+            print(f"Error uploading to tweets_awaiting_disp_blob: {e}")
 
     # New RT replies
     if new_rt_replies_count > 0:
+        # print(tweets_awaiting_rt_existing_data)
+        # keys_to_keep = list(tweets_awaiting_rt_existing_data.keys())[-min(30, len(tweets_awaiting_rt_existing_data)):]
+        # tweets_awaiting_rt_existing_data_filtered = {key: tweets_awaiting_rt_existing_data[key] for key in keys_to_keep}
+        # print(tweets_awaiting_rt_existing_data_filtered)
         print(tweets_awaiting_rt_existing_data)
-        keys_to_keep = list(tweets_awaiting_rt_existing_data.keys())[-min(30, len(tweets_awaiting_rt_existing_data)):]
-        tweets_awaiting_rt_existing_data_filtered = {key: tweets_awaiting_rt_existing_data[key] for key in keys_to_keep}
-        tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data_filtered)
+        tweets_awaiting_rt_new_data = json.dumps(tweets_awaiting_rt_existing_data)
         try:
             tweets_awaiting_rt_blob.upload_from_string(tweets_awaiting_rt_new_data)
             print("Uploaded to tweets_awaiting_rt_blob.")
         except Exception as e:
-            print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
+             print(f"Error uploading to tweets_awaiting_rt_blob: {e}")
+             print(f"Type of exception: {type(e)}")
+             print(f"Additional error information: {str(e)}")
+        try:
+            downloaded_data = tweets_awaiting_rt_blob.download_as_text()
+            print("Downloaded data:")
+            print(downloaded_data)
+        except Exception as e:
+            print(f"Error downloading data from tweets_awaiting_rt_blob: {e}")
+            print(f"Type of exception: {type(e)}")
+            print(f"Additional error information: {str(e)}")
 
     print(f"Sevr: {new_tweets_count}, {new_disp_replies_count}, {new_rt_replies_count} + {already_posted} / {call_count} calls")
     return "Ok"
